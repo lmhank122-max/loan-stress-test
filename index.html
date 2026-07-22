@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>信貸投資台股壓力測試器|一次投入 vs 定期定額歷史回測</title>
 <meta name="description" content="以 0050 歷史月報酬回測:相同月現金流下,信貸一次投入與定期定額的期末資產比較,並呈現最壞情境下的資產與貸款餘額缺口。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lmhank122-max.github.io/loan-stress-test/">
+<meta property="og:title" content="信貸投資台股壓力測試器|一次投入 vs 定期定額">
+<meta property="og:description" content="用 0050 歷史月報酬回測:相同月現金流下誰的期末資產多?並看清最壞情境——資產低於貸款餘額的水下期有多長。">
+<meta property="og:locale" content="zh_TW">
+<meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -160,6 +166,7 @@ footer a{color:var(--ink-2);}
           <button data-y="3" onclick="setYears(3,this)">3 年</button>
           <button data-y="5" onclick="setYears(5,this)">5 年</button>
           <button data-y="7" class="on" onclick="setYears(7,this)">7 年</button>
+          <button data-y="10" onclick="setYears(10,this)">10 年</button>
         </div>
       </div>
       <div class="ctl">
@@ -169,7 +176,7 @@ footer a{color:var(--ink-2);}
       </div>
       <div class="ctl">
         <label>貸款年利率 <span class="val" id="rate-out">2.80%</span></label>
-        <input type="range" id="rate" min="1.5" max="8" step="0.05" value="2.8">
+        <input type="range" id="rate" min="1.5" max="16" step="0.05" value="2.8">
         <p class="hint">固定名目利率;未含開辦費等費用,實際總費用年百分率通常更高。</p>
       </div>
       <div class="ctl" style="grid-column:1 / -1;">
