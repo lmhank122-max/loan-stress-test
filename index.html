@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="比較換貸後一次投入與維持舊貸、投入月付差額的台股歷史壓力測試。">
+  <meta name="description" content="使用台股歷史資料，比較換貸後一次投入與維持原貸、投入月付差額的資產路徑、負債缺口與歷史窗口。">
   <meta name="theme-color" content="#17243b">
   <meta name="robots" content="index,follow">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="zh_TW">
-  <meta property="og:title" content="信貸投資台股壓力測試器｜換貸一次投入 vs 維持舊貸">
+  <meta property="og:title" content="台股槓桿換貸壓力測試器｜一次投入 vs 月付差額投資">
   <meta property="og:description" content="使用00631L官方淨值歷史資料，比較換貸後一次投入與維持舊貸、投入月付差額的資產路徑、負債缺口與歷史窗口。">
   <meta name="twitter:card" content="summary">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2317243b'/%3E%3Cpath d='M14 42 25 31l8 8 17-20' fill='none' stroke='%23fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <title>信貸投資台股壓力測試器｜換貸策略修正版</title>
+  <title>台股槓桿換貸壓力測試器｜一次投入 vs 月付差額投資</title>
   <style>
     :root{
       --paper:#f3f5f8;--card:#fff;--ink:#17243b;--muted:#5d6b81;--faint:#8793a5;
@@ -108,7 +108,7 @@
 <body>
 <nav class="site-nav" aria-label="主要導覽">
   <div class="nav-inner">
-    <a class="brand" href="#top">信貸投資壓力測試</a>
+    <a class="brand" href="#top">台股槓桿壓力測試</a>
     <div class="nav-links">
       <a href="#settings">輸入條件</a>
       <a href="#comparison">策略結果</a>
@@ -120,16 +120,16 @@
 </nav>
 <main class="wrap">
   <header id="top">
-    <p class="eyebrow">換貸投資・歷史路徑壓力測試</p>
-    <h1>不是借 42 萬全押，<br>而是先清舊貸，再投入<em>真正剩下的錢</em></h1>
+    <p class="eyebrow">台股槓桿投資・貸款現金流壓力測試</p>
+    <h1>換貸後一次投入，<br>先看資產與負債的<em>最壞路徑</em></h1>
     <p class="lede">
-      本修正版依照實際策略比較：<strong>方案 A「新貸清舊貸後，一次投入剩餘資金」</strong>，
+      本工具比較：<strong>方案 A「新貸清償原貸後，一次投入剩餘資金」</strong>，
       對上<strong>方案 B「維持舊貸，將兩方案每月支出差額投入」</strong>。兩案使用同一份薪資月預算，
-      投資部位不拿來繳貸款，並假設全期持有、不因市場下跌賣出。
+      投資部位不拿來繳貸款，並假設全期持有、不因短期市場波動賣出。
     </p>
     <div class="pill-row">
-      <span class="pill">預設新貸 42 萬</span><span class="pill">96 期</span>
-      <span class="pill">名目利率 6.76%</span><span class="pill">開辦費 3,088 元</span>
+      <span class="pill">00631L 官方淨值</span><span class="pill">一次投入 vs 差額投入</span>
+      <span class="pill">APR／有效年化換算</span><span class="pill">歷史水下風險</span>
       <span class="pill">月底還款／投入</span>
     </div>
     <div class="hero-actions">
@@ -148,8 +148,8 @@
   </div>
 
   <section id="settings">
-    <h2>一、輸入實際換貸條件</h2>
-    <p class="section-note">舊貸的當日清償本金、剩餘期數與提前清償費，請以銀行正式報價取代預設估值。</p>
+    <h2>一、輸入試算條件</h2>
+    <p class="section-note">頁面預填的是通用示例值，不代表任何人的貸款狀況。使用時請以銀行正式報價取代所有欄位。</p>
     <div class="panel">
       <div class="grid">
         <div class="field wide">
@@ -160,14 +160,14 @@
             <button id="target2x" class="risky" type="button">2× 教學模擬</button>
           </div>
         </div>
-        <div class="field"><label for="newPrincipal">新貸本金</label><input id="newPrincipal" type="number" min="10000" step="1000" value="420000"></div>
-        <div class="field"><label for="newMonths">新貸期數（月）</label><input id="newMonths" type="number" min="12" max="240" step="1" value="96"></div>
-        <div class="field"><label for="newRate">新貸名目年利率（%）</label><input id="newRate" type="number" min="0" max="30" step="0.01" value="6.76"></div>
-        <div class="field"><label for="originationFee">開辦費</label><input id="originationFee" type="number" min="0" step="100" value="3088"></div>
-        <div class="field"><label for="oldPrincipal">舊貸當日清償本金</label><input id="oldPrincipal" type="number" min="0" step="100" value="184500"><p class="hint">預設為先前估值，務必換成銀行報價。</p></div>
+        <div class="field"><label for="newPrincipal">新貸本金</label><input id="newPrincipal" type="number" min="10000" step="1000" value="500000"></div>
+        <div class="field"><label for="newMonths">新貸期數（月）</label><input id="newMonths" type="number" min="12" max="240" step="1" value="84"></div>
+        <div class="field"><label for="newRate">新貸名目年利率（%）</label><input id="newRate" type="number" min="0" max="30" step="0.01" value="5.00"></div>
+        <div class="field"><label for="originationFee">開辦費</label><input id="originationFee" type="number" min="0" step="100" value="3000"></div>
+        <div class="field"><label for="oldPrincipal">原貸當日清償本金</label><input id="oldPrincipal" type="number" min="0" step="100" value="200000"><p class="hint">通用示例值，請換成銀行的當日清償報價。</p></div>
         <div class="field"><label for="prepayFee">舊貸提前清償費</label><input id="prepayFee" type="number" min="0" step="100" value="0"></div>
-        <div class="field"><label for="oldPayment">舊貸目前月付</label><input id="oldPayment" type="number" min="0" step="1" value="2954"></div>
-        <div class="field"><label for="oldMonths">舊貸剩餘期數（月）</label><input id="oldMonths" type="number" min="0" max="240" step="1" value="76"></div>
+        <div class="field"><label for="oldPayment">原貸目前月付</label><input id="oldPayment" type="number" min="0" step="1" value="3500"></div>
+        <div class="field"><label for="oldMonths">原貸剩餘期數（月）</label><input id="oldMonths" type="number" min="0" max="240" step="1" value="60"></div>
         <div class="field"><label for="simFee">2× 每月示意摩擦（%）</label><input id="simFee" type="number" min="0" max="3" step="0.01" value="0.10"><p class="hint">純示意，沒有用它冒充真實費用。</p></div>
         <div class="field wide">
           <label for="start">進場月份 <span class="mono" id="startLabel">—</span></label>
@@ -177,7 +177,7 @@
       <div class="btnrow">
         <button class="btn primary" id="jumpWorst" type="button">跳到策略差額最差窗口</button>
         <button class="btn" id="jumpRandom" type="button">隨機進場</button>
-        <button class="btn" id="resetDefaults" type="button">恢復本案預設值</button>
+        <button class="btn" id="resetDefaults" type="button">恢復通用示例值</button>
         <button class="btn" id="download631" type="button">下載 00631L 月報酬 CSV</button>
       </div>
       <p class="footnote" id="inputWarning"></p>
@@ -259,7 +259,7 @@
 
   <section id="history">
     <h2>五、全部可用歷史窗口</h2>
-    <p class="section-note">勝率是這份資料中重疊歷史窗口的比例，不是未來的統計保證；相鄰窗口高度重疊。00631L 真實模式受限於 2014 年掛牌後的資料長度，96 期只會產生 45 個高度重疊窗口。</p>
+    <p class="section-note">勝率是這份資料中重疊歷史窗口的比例，不是未來的統計保證；相鄰窗口高度重疊。00631L 真實模式受限於 2014 年掛牌後的資料長度，可用窗口數會隨貸款期數改變。</p>
     <div class="kpis">
       <div class="kpi"><p class="k">方案 A 勝出窗口</p><p class="v mono" id="winRate">—</p><p class="s" id="winCount">—</p></div>
       <div class="kpi"><p class="k">勝出時差額中位數</p><p class="v mono" id="winMedian">—</p><p class="s" id="winBest">—</p></div>
@@ -278,14 +278,14 @@
   <section id="method">
     <h2>六、模型怎麼公平比較</h2>
     <div class="method">
-      <article><h3>1｜撥款日</h3><p>方案 A 投入「新貸本金－開辦費－舊貸清償本金－提前清償費」。方案 B 維持原狀，不虛構一筆可以投入的 42 萬。</p></article>
+      <article><h3>1｜撥款日</h3><p>方案 A 投入「新貸本金－開辦費－原貸清償本金－提前清償費」。方案 B 維持原狀，不把整筆新貸本金誤當成全部可投資資金。</p></article>
       <article><h3>2｜每個月底</h3><p>兩案共用同一薪資預算。舊貸還在時，方案 B 把新舊月付差額投入；舊貸結束後，改投入完整新貸月付。若舊月付反而較高，模型會將差額投入方案 A，維持公平。</p></article>
       <article><h3>3｜比較基準</h3><p>以「投資資產－各自貸款餘額」比較淨值。開辦費與提前清償費已降低方案 A 的起始投入，不會被遺漏。</p></article>
     </div>
   </section>
 
   <footer>
-    <p><strong>資料：</strong>00631L 模式取自元大投信官方歷史淨值介面，共取得 2014/10/31–2026/07/24 的 2,860 筆日資料，再轉為 2014/11–2026/06 的 140 筆完整月報酬。0050 模式沿用使用者提供之還原息月報酬序列（2003/07–2026/06），原註記來源為 havocFuture 個人整理資料。本檔已內嵌資料，開啟時不連網。</p>
+    <p><strong>資料：</strong>00631L 模式取自元大投信官方歷史淨值介面，共取得 2014/10/31–2026/07/24 的 2,860 筆日資料，再轉為 2014/11–2026/06 的 140 筆完整月報酬。0050 模式使用內建的還原息月報酬序列（2003/07–2026/06），原註記來源為 havocFuture 個人整理資料。本檔已內嵌資料，開啟時不連網。</p>
     <p><strong>分割處理：</strong>00631L 於 2026/03 進行 1 單位換發 22 單位的分割；分割前淨值除以 22，2026/03/25–03/30 停止交易期間則以官方基金淨資產／流通單位數還原淨值。2× 教學模式仍不是真實 00631L。</p>
     <p><strong>重要限制：</strong>模型未計入稅費、券商交易成本、買賣折溢價、浮動／分段利率、信用保險、帳管費、利率調整、舊貸部分月提前清償規則與收入中斷。若銀行從撥款外另行收費，請依實際現金流調整。</p>
     <p><strong>免責聲明：</strong>本頁為歷史情境分析與教育用途，不構成投資、信貸或財務建議。長期不賣能降低被迫在低點退出的操作風險，但不能消除槓桿 ETF 的路徑耗損、商品結構風險與長期落後風險。</p>
@@ -340,7 +340,7 @@
   ];
   const $ = id => document.getElementById(id);
   let target = 0;
-  const defaults = {newPrincipal:420000,newMonths:96,newRate:6.76,originationFee:3088,oldPrincipal:184500,prepayFee:0,oldPayment:2954,oldMonths:76,simFee:0.10};
+  const defaults = {newPrincipal:500000,newMonths:84,newRate:5.00,originationFee:3000,oldPrincipal:200000,prepayFee:0,oldPayment:3500,oldMonths:60,simFee:0.10};
   const colors = {ink:"#17243b",blue:"#2d5d9f",loan:"#7a8799",old:"#aab3c0",green:"#1c8157",amber:"#946400",red:"#c63c3f",grid:"#e6eaf0",muted:"#66758b"};
 
   const num = id => Math.max(0, Number($(id).value) || 0);
