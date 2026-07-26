@@ -1,551 +1,633 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>信貸投資台股壓力測試器|一次投入 vs 定期定額歷史回測</title>
-<meta name="description" content="以 0050 歷史月報酬回測:相同月現金流下,信貸一次投入與定期定額的期末資產比較,並呈現最壞情境下的資產與貸款餘額缺口。">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://lmhank122-max.github.io/loan-stress-test/">
-<meta property="og:title" content="信貸投資台股壓力測試器|一次投入 vs 定期定額">
-<meta property="og:description" content="用 0050 歷史月報酬回測:相同月現金流下誰的期末資產多?並看清最壞情境——資產低於貸款餘額的水下期有多長。">
-<meta property="og:locale" content="zh_TW">
-<meta name="twitter:card" content="summary">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
-<style>
-:root{
-  --paper:#F2F4F7; --card:#FFFFFF; --ink:#16233A; --ink-2:#5A6A82; --ink-3:#8B98AC;
-  --up:#C93A3C; --up-bg:#FBEDED; --down:#1E8659; --down-bg:#E9F4EF;
-  --warn:#9A6B00; --warn-bg:#FFF4D6; --line:#DCE2EA; --loan:#7C8798;
-}
-*{box-sizing:border-box; margin:0; padding:0;}
-html{scroll-behavior:smooth;}
-@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} *{transition:none !important;} }
-body{
-  background:var(--paper); color:var(--ink);
-  font-family:"Noto Sans TC", sans-serif; font-size:16px; line-height:1.75;
-  -webkit-font-smoothing:antialiased;
-}
-.wrap{max-width:820px; margin:0 auto; padding:0 20px 80px;}
-.mono{font-family:"IBM Plex Mono", monospace; font-variant-numeric:tabular-nums;}
-header{padding:56px 0 8px;}
-.eyebrow{font-size:13px; letter-spacing:0.18em; color:var(--ink-2); font-weight:500;}
-h1{
-  font-family:"Noto Serif TC", serif; font-weight:700;
-  font-size:clamp(28px, 5.4vw, 44px); line-height:1.3; margin:10px 0 14px;
-}
-h1 .accent{color:var(--up);}
-.lede{color:var(--ink-2); max-width:640px;}
-.lede strong{color:var(--ink);}
-.convention{
-  display:inline-flex; gap:14px; align-items:center; margin-top:16px;
-  font-size:13px; color:var(--ink-2); background:var(--card);
-  border:1px solid var(--line); border-radius:6px; padding:6px 12px;
-}
-.dot{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; vertical-align:baseline;}
-h2{font-family:"Noto Serif TC", serif; font-weight:600; font-size:22px; margin:0 0 4px;}
-.sec{margin-top:44px;}
-.sec-note{font-size:14px; color:var(--ink-2); margin-bottom:16px;}
-.panel{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:22px;}
-.controls{display:grid; grid-template-columns:1fr 1fr; gap:18px 28px;}
-@media (max-width:640px){ .controls{grid-template-columns:1fr;} }
-.ctl label{display:block; font-size:13px; font-weight:500; color:var(--ink-2); margin-bottom:6px;}
-.ctl .val{float:right; font-family:"IBM Plex Mono", monospace; font-size:13px; font-weight:600; color:var(--ink);}
-.ctl .hint{font-size:12px; color:var(--ink-3); margin-top:2px;}
-input[type=range]{width:100%; accent-color:var(--ink); height:28px; cursor:pointer;}
-.seg{display:flex; gap:0; border:1px solid var(--line); border-radius:8px; overflow:hidden; width:100%;}
-.seg button{
-  flex:1; border:0; background:var(--card); color:var(--ink-2); font:inherit; font-size:14px;
-  padding:9px 6px; cursor:pointer; transition:background .15s;
-}
-.seg button + button{border-left:1px solid var(--line);}
-.seg button:hover{background:var(--paper);}
-.seg button.on{background:var(--ink); color:#fff; font-weight:500;}
-.seg button.on.risky{background:var(--warn);}
-.btnrow{display:flex; gap:10px; flex-wrap:wrap; margin-top:18px;}
-.btn{
-  border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit;
-  font-size:14px; padding:9px 16px; border-radius:8px; cursor:pointer; transition:background .15s;
-}
-.btn:hover{background:var(--paper);}
-.btn:focus-visible, .seg button:focus-visible, input:focus-visible{outline:2px solid var(--ink); outline-offset:2px;}
-.btn.primary{background:var(--ink); color:#fff; border-color:var(--ink);}
-.btn.primary:hover{background:#243654;}
-#warn631{
-  display:none; margin-top:18px; background:var(--warn-bg); border:1px solid #E4C55E;
-  border-radius:8px; padding:12px 16px; font-size:14px; color:var(--warn);
-}
-#warn631.show{display:block;}
-.hero-read{
-  margin-top:28px; padding:26px 22px; border-radius:10px; text-align:center;
-  background:var(--card); border:1px solid var(--line); transition:background .3s, border-color .3s;
-}
-.hero-read.underwater{background:var(--down-bg); border-color:#BBDCC9;}
-.hero-read .label{font-size:14px; color:var(--ink-2);}
-.hero-read .big{
-  font-family:"IBM Plex Mono", monospace; font-weight:600;
-  font-size:clamp(30px, 6vw, 46px); line-height:1.25; margin:6px 0;
-}
-.hero-read .sub{font-size:14px; color:var(--ink-2);}
-.stats{display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-top:14px;}
-.stat{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px;}
-.stat .k{font-size:12.5px; color:var(--ink-2); margin-bottom:4px;}
-.stat .v{font-family:"IBM Plex Mono", monospace; font-size:20px; font-weight:600; line-height:1.4; overflow-wrap:anywhere;}
-@media (max-width:480px){ .stat .v{font-size:17px;} }
-.stat .s{font-size:12.5px; color:var(--ink-3); margin-top:2px;}
-.chart-box{position:relative; height:320px; margin-top:18px;}
-.chart-box.short{height:250px;}
-.legend-note{font-size:13px; color:var(--ink-3); margin-top:10px;}
-.verdict{margin-top:16px; font-size:15px; background:var(--card); border-left:3px solid var(--ink); padding:12px 16px; border-radius:0 8px 8px 0;}
-.flow-title{font-size:14px; font-weight:500; color:var(--ink-2); margin-bottom:10px;}
-.flow-row{display:grid; grid-template-columns:190px 1fr 116px; gap:10px; align-items:center; margin:8px 0; font-size:13.5px;}
-@media (max-width:560px){ .flow-row{grid-template-columns:128px 1fr 100px;} }
-.flow-k{color:var(--ink-2);}
-.flow-track{background:var(--paper); border-radius:4px; height:18px; overflow:hidden;}
-.flow-bar{height:100%; border-radius:4px; transition:width .25s;}
-@media (prefers-reduced-motion: reduce){ .flow-bar{transition:none;} }
-.flow-v{text-align:right; font-size:13px; font-weight:600;}
-.ceiling{margin-top:12px; font-size:14px; padding:10px 14px; border-radius:8px; background:var(--paper); line-height:1.7;}
-.ceiling.bad{background:var(--down-bg); color:var(--down);}
-.questions{counter-reset:q;}
-.q{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px 20px; margin-top:12px;}
-.q::before{
-  counter-increment:q; content:"問題 " counter(q);
-  font-family:"IBM Plex Mono", monospace; font-size:12px; letter-spacing:0.1em;
-  color:var(--up); font-weight:600; display:block; margin-bottom:6px;
-}
-.q p{font-size:15px;}
-.q p strong{color:var(--up);}
-.q p .fine{font-size:13px; color:var(--ink-3);}
-footer{
-  margin-top:56px; padding-top:20px; border-top:1px solid var(--line);
-  font-size:13px; color:var(--ink-2); line-height:1.9;
-}
-footer a{color:var(--ink-2);}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="比較換貸後一次投入與維持舊貸、投入月付差額的台股歷史壓力測試。">
+  <meta name="theme-color" content="#17243b">
+  <meta name="robots" content="index,follow">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="zh_TW">
+  <meta property="og:title" content="信貸投資台股壓力測試器｜換貸一次投入 vs 維持舊貸">
+  <meta property="og:description" content="使用00631L官方淨值歷史資料，比較換貸後一次投入與維持舊貸、投入月付差額的資產路徑、負債缺口與歷史窗口。">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2317243b'/%3E%3Cpath d='M14 42 25 31l8 8 17-20' fill='none' stroke='%23fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <title>信貸投資台股壓力測試器｜換貸策略修正版</title>
+  <style>
+    :root{
+      --paper:#f3f5f8;--card:#fff;--ink:#17243b;--muted:#5d6b81;--faint:#8793a5;
+      --line:#dce2ea;--red:#c63c3f;--red-bg:#fbecee;--green:#1c8157;--green-bg:#e8f4ee;
+      --amber:#946400;--amber-bg:#fff4d3;--blue:#2d5d9f;--loan:#7a8799;--shadow:0 8px 28px rgba(28,45,72,.06)
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--paper);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.68}
+    button,input{font:inherit}
+    .wrap{width:min(1040px,calc(100% - 32px));margin:auto;padding-bottom:72px}
+    .site-nav{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}
+    .nav-inner{width:min(1040px,calc(100% - 32px));height:58px;margin:auto;display:flex;align-items:center;gap:20px}
+    .brand{font-weight:900;color:var(--ink);text-decoration:none;white-space:nowrap}
+    .nav-links{display:flex;gap:4px;margin-left:auto;overflow-x:auto;scrollbar-width:none}
+    .nav-links::-webkit-scrollbar{display:none}
+    .nav-links a{color:var(--muted);text-decoration:none;font-size:13px;font-weight:700;white-space:nowrap;padding:7px 9px;border-radius:7px}
+    .nav-links a:hover{background:var(--paper);color:var(--ink)}
+    header{padding:54px 0 24px}
+    .eyebrow{margin:0;color:var(--muted);font-size:13px;letter-spacing:.17em;font-weight:700}
+    h1{font-family:"Noto Serif TC","PMingLiU",serif;font-size:clamp(30px,5.7vw,49px);line-height:1.24;margin:10px 0 14px}
+    h1 em{color:var(--red);font-style:normal}
+    .lede{max-width:780px;color:var(--muted);margin:0;font-size:16px}
+    .lede strong{color:var(--ink)}
+    .pill-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+    .pill{background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:12px;color:var(--muted)}
+    .hero-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}
+    .hero-actions a{text-decoration:none}
+    .alert{border:1px solid #e3c45d;background:var(--amber-bg);color:#6f5007;border-radius:12px;padding:16px 18px;margin:20px 0;box-shadow:var(--shadow)}
+    .alert strong{color:#573d00}
+    .alert p{margin:4px 0}
+    .alert .bigwarn{font-size:16px;font-weight:800}
+    section{margin-top:38px;scroll-margin-top:72px}
+    h2{font-family:"Noto Serif TC","PMingLiU",serif;font-size:24px;margin:0 0 5px}
+    .section-note{color:var(--muted);font-size:14px;margin:0 0 15px}
+    .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:var(--shadow)}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 24px}
+    .field label{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:13px;font-weight:700;margin-bottom:6px}
+    .field input[type=number]{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 11px;background:#fff;color:var(--ink)}
+    .field input:focus,.seg button:focus-visible,.btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+    .hint{font-size:12px;color:var(--faint);margin:4px 0 0}
+    .wide{grid-column:1/-1}
+    .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+    .seg button{flex:1;border:0;background:#fff;color:var(--muted);padding:9px 7px;cursor:pointer}
+    .seg button+button{border-left:1px solid var(--line)}
+    .seg button.on{background:var(--ink);color:#fff;font-weight:700}
+    .seg button.risky.on{background:var(--amber)}
+    .slider-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
+    input[type=range]{width:100%;accent-color:var(--ink)}
+    .mono{font-family:"IBM Plex Mono","Cascadia Mono","SFMono-Regular",Consolas,monospace;font-variant-numeric:tabular-nums}
+    .btnrow{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}
+    .btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;padding:9px 14px;cursor:pointer}
+    .btn:hover{background:#f7f8fa}
+    .btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+    .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:14px}
+    .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px 16px;box-shadow:var(--shadow)}
+    .kpi .k{font-size:12.5px;color:var(--muted);margin:0 0 4px}
+    .kpi .v{font-size:20px;font-weight:800;margin:0;overflow-wrap:anywhere}
+    .kpi .s{font-size:12px;color:var(--faint);margin:3px 0 0}
+    .strategy-grid,.gap-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .strategy{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow)}
+    .strategy h3{margin:0 0 8px;font-size:17px}
+    .strategy .amount{font-size:29px;font-weight:800;margin:0 0 5px}
+    .strategy dl{display:grid;grid-template-columns:1fr auto;gap:7px 14px;margin:13px 0 0;font-size:13px}
+    .strategy dt{color:var(--muted)}.strategy dd{margin:0;text-align:right;font-weight:700}
+    .gap{border-radius:14px;padding:20px;border:1px solid var(--line);background:#fff;box-shadow:var(--shadow)}
+    .gap.bad{background:var(--green-bg);border-color:#bbdccb}
+    .gap.good{background:var(--red-bg);border-color:#ebc4c5}
+    .gap .label{font-size:13px;color:var(--muted);margin:0}
+    .gap .big{font-size:26px;font-weight:800;margin:5px 0}
+    .gap .sub{font-size:13px;color:var(--muted);margin:0}
+    .verdict{margin-top:14px;background:#fff;border-left:4px solid var(--ink);border-radius:0 10px 10px 0;padding:14px 17px;font-size:15px}
+    .chart-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px;margin-top:14px;box-shadow:var(--shadow)}
+    .chart-title{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin:0 2px 9px}
+    .chart-title strong{font-size:14px}.chart-title span{font-size:12px;color:var(--faint)}
+    canvas{display:block;width:100%;height:330px}
+    canvas.short{height:245px}
+    .legend{display:flex;gap:14px;flex-wrap:wrap;margin:9px 4px 0;color:var(--muted);font-size:12px}
+    .key::before{content:"";display:inline-block;width:15px;height:3px;background:var(--key);vertical-align:middle;margin-right:5px;border-radius:2px}
+    .method{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .method article{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px}
+    .method h3{font-size:15px;margin:0 0 7px}.method p{font-size:13px;color:var(--muted);margin:0}
+    .footnote{font-size:13px;color:var(--muted);margin-top:12px}
+    footer{border-top:1px solid var(--line);margin-top:48px;padding-top:20px;color:var(--muted);font-size:12.5px}
+    footer p{margin:8px 0}
+    .hidden{display:none!important}
+    @media(max-width:820px){.grid{grid-template-columns:1fr 1fr}.kpis{grid-template-columns:1fr 1fr}.method{grid-template-columns:1fr}}
+    @media(max-width:620px){.wrap{width:min(100% - 22px,1040px)}.nav-inner{width:100%;padding:0 11px;gap:8px}.brand{font-size:14px}.nav-links a{font-size:12px;padding:7px 8px}header{padding-top:35px}.grid,.strategy-grid,.gap-grid{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}.panel{padding:16px}.wide{grid-column:auto}canvas{height:285px}.chart-title{display:block}.chart-title span{display:block;margin-top:3px}}
+    @media(max-width:420px){.kpis{grid-template-columns:1fr}.kpi .v{font-size:19px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  </style>
 </head>
 <body>
-<div class="wrap">
+<nav class="site-nav" aria-label="主要導覽">
+  <div class="nav-inner">
+    <a class="brand" href="#top">信貸投資壓力測試</a>
+    <div class="nav-links">
+      <a href="#settings">輸入條件</a>
+      <a href="#comparison">策略結果</a>
+      <a href="#risk">水下風險</a>
+      <a href="#history">歷史窗口</a>
+      <a href="#method">模型說明</a>
+    </div>
+  </div>
+</nav>
+<main class="wrap">
+  <header id="top">
+    <p class="eyebrow">換貸投資・歷史路徑壓力測試</p>
+    <h1>不是借 42 萬全押，<br>而是先清舊貸，再投入<em>真正剩下的錢</em></h1>
+    <p class="lede">
+      本修正版依照實際策略比較：<strong>方案 A「新貸清舊貸後，一次投入剩餘資金」</strong>，
+      對上<strong>方案 B「維持舊貸，將兩方案每月支出差額投入」</strong>。兩案使用同一份薪資月預算，
+      投資部位不拿來繳貸款，並假設全期持有、不因市場下跌賣出。
+    </p>
+    <div class="pill-row">
+      <span class="pill">預設新貸 42 萬</span><span class="pill">96 期</span>
+      <span class="pill">名目利率 6.76%</span><span class="pill">開辦費 3,088 元</span>
+      <span class="pill">月底還款／投入</span>
+    </div>
+    <div class="hero-actions">
+      <a class="btn primary" href="#settings">開始調整條件</a>
+      <a class="btn" href="#history">先看歷史結果</a>
+    </div>
+  </header>
 
-<header>
-  <p class="eyebrow">信貸投資台股・壓力測試器</p>
-  <h1>信貸一次投入,<br>先看完<span class="accent">最壞劇本</span></h1>
-  <p class="lede">
-    把一筆信貸一次投入台股,與「不借款、把同樣的月付金定期定額投入」相比,誰的期末資產比較多?
-    本頁用真實歷史月報酬回測這個問題。
-    需要留意的是:<strong>投資的年化報酬、貸款的名目利率、加計費用後的總費用年百分率,是三種不同口徑的數字</strong>;
-    而且報酬是多年的「平均」,還款是每一個月的「義務」。
-    因此除了期末結果,本頁同時呈現多數試算不會顯示的部分——
-    <strong>最壞情境下,資產可能連續多年低於貸款餘額,全部賣掉也不足以清償。</strong>
-    能不能撐到最後,和報酬率一樣,是評估這筆規劃時必須回答的問題。
-  </p>
-  <p class="convention" aria-label="顏色慣例">
-    <span>本頁採台股慣例</span>
-    <span><span class="dot" style="background:var(--up)"></span>紅=賺</span>
-    <span><span class="dot" style="background:var(--down)"></span>綠=賠</span>
-  </p>
-</header>
+  <div class="alert" id="actualDataNotice" role="status" style="background:#edf4fb;border-color:#b9cde8;color:#294f80">
+    <p class="bigwarn" style="color:#173b67">目前使用 00631L 官方每日淨值還原的完整月報酬。</p>
+    <p>資料涵蓋 2014/10/31 掛牌日至 2026/06 的完整月份；2026 年 3 月基金分割已校正，停止交易期間的零淨值以官方基金淨資產除以流通單位數補回。2026/07 尚未結束，因此不納入歷史窗口。</p>
+  </div>
+  <div class="alert hidden" id="leverageAlert" role="alert">
+    <p class="bigwarn">目前選的是「2× 教學模擬」，不是 00631L 真實回測。</p>
+    <p>模型僅把 0050 的<strong>月報酬乘以 2，再扣每月 0.10% 示意摩擦</strong>。真實 00631L 是逐日再平衡，還會受到期貨正逆價差、轉倉、追蹤誤差、費用與月內路徑影響；因此本頁不能推估真實商品的勝率、最大回撤或恢復時間。即使採取長期不賣策略，這個限制仍然存在。</p>
+  </div>
 
-<section class="sec">
-  <h2>一、設定你的劇本</h2>
-  <p class="sec-note">兩種策略每月現金流出完全相同:等於信貸月付金(本息平均攤還),於<strong>每月月底</strong>支付或投入。「一次投入最差區間」的定義是:一次投入期末資產最低的歷史窗口。</p>
-  <div class="panel">
-    <div class="controls">
-      <div class="ctl">
-        <label>投資標的</label>
-        <div class="seg" role="group" aria-label="投資標的">
-          <button id="t0050" class="on" onclick="setTarget(0)">0050(還原息)</button>
-          <button id="t631" onclick="setTarget(1)">2× 槓桿(教學模擬)</button>
+  <section id="settings">
+    <h2>一、輸入實際換貸條件</h2>
+    <p class="section-note">舊貸的當日清償本金、剩餘期數與提前清償費，請以銀行正式報價取代預設估值。</p>
+    <div class="panel">
+      <div class="grid">
+        <div class="field wide">
+          <label>歷史報酬模式</label>
+          <div class="seg" role="group" aria-label="歷史報酬模式">
+            <button id="target631" class="on" type="button">00631L 官方淨值</button>
+            <button id="target0050" type="button">0050 還原息</button>
+            <button id="target2x" class="risky" type="button">2× 教學模擬</button>
+          </div>
+        </div>
+        <div class="field"><label for="newPrincipal">新貸本金</label><input id="newPrincipal" type="number" min="10000" step="1000" value="420000"></div>
+        <div class="field"><label for="newMonths">新貸期數（月）</label><input id="newMonths" type="number" min="12" max="240" step="1" value="96"></div>
+        <div class="field"><label for="newRate">新貸名目年利率（%）</label><input id="newRate" type="number" min="0" max="30" step="0.01" value="6.76"></div>
+        <div class="field"><label for="originationFee">開辦費</label><input id="originationFee" type="number" min="0" step="100" value="3088"></div>
+        <div class="field"><label for="oldPrincipal">舊貸當日清償本金</label><input id="oldPrincipal" type="number" min="0" step="100" value="184500"><p class="hint">預設為先前估值，務必換成銀行報價。</p></div>
+        <div class="field"><label for="prepayFee">舊貸提前清償費</label><input id="prepayFee" type="number" min="0" step="100" value="0"></div>
+        <div class="field"><label for="oldPayment">舊貸目前月付</label><input id="oldPayment" type="number" min="0" step="1" value="2954"></div>
+        <div class="field"><label for="oldMonths">舊貸剩餘期數（月）</label><input id="oldMonths" type="number" min="0" max="240" step="1" value="76"></div>
+        <div class="field"><label for="simFee">2× 每月示意摩擦（%）</label><input id="simFee" type="number" min="0" max="3" step="0.01" value="0.10"><p class="hint">純示意，沒有用它冒充真實費用。</p></div>
+        <div class="field wide">
+          <label for="start">進場月份 <span class="mono" id="startLabel">—</span></label>
+          <div class="slider-row"><input id="start" type="range" min="0" max="1" value="0"><span class="mono" id="rangeCount">—</span></div>
         </div>
       </div>
-      <div class="ctl">
-        <label>貸款年期</label>
-        <div class="seg" role="group" aria-label="貸款年期">
-          <button data-y="3" onclick="setYears(3,this)">3 年</button>
-          <button data-y="5" onclick="setYears(5,this)">5 年</button>
-          <button data-y="7" class="on" onclick="setYears(7,this)">7 年</button>
-          <button data-y="10" onclick="setYears(10,this)">10 年</button>
-        </div>
+      <div class="btnrow">
+        <button class="btn primary" id="jumpWorst" type="button">跳到策略差額最差窗口</button>
+        <button class="btn" id="jumpRandom" type="button">隨機進場</button>
+        <button class="btn" id="resetDefaults" type="button">恢復本案預設值</button>
+        <button class="btn" id="download631" type="button">下載 00631L 月報酬 CSV</button>
       </div>
-      <div class="ctl">
-        <label>貸款金額 <span class="val" id="amt-out">100 萬</span></label>
-        <input type="range" id="amt" min="100000" max="5000000" step="100000" value="1000000">
-        <p class="hint">金額只會等比例縮放所有數字;勝率、水下時間、交叉利率都不會因此改變。</p>
+      <p class="footnote" id="inputWarning"></p>
+    </div>
+  </section>
+
+  <section id="loan">
+    <h2>二、貸款與可投資金額校正</h2>
+    <p class="section-note">月付用名目利率計算；APR 則以「實收新貸本金扣開辦費」對每月還款現金流反推，與投資複利比較時看有效年化。</p>
+    <div class="kpis">
+      <div class="kpi"><p class="k">實際可一次投入</p><p class="v mono" id="investable">—</p><p class="s" id="investFormula">—</p></div>
+      <div class="kpi"><p class="k">新貸每月還款</p><p class="v mono" id="newPaymentOut">—</p><p class="s" id="monthlyDelta">—</p></div>
+      <div class="kpi"><p class="k">總費用年百分率（名目 APR）</p><p class="v mono" id="aprNominal">—</p><p class="s">月 IRR × 12；含開辦費</p></div>
+      <div class="kpi"><p class="k">有效年化資金成本</p><p class="v mono" id="aprEffective">—</p><p class="s">與複利年化報酬同口徑</p></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><p class="k">新貸總利息</p><p class="v mono" id="newInterest">—</p><p class="s">未含開辦費與提前清償費</p></div>
+      <div class="kpi"><p class="k">初始新增淨負債</p><p class="v mono" id="incrementalDebt0">—</p><p class="s">新貸－原本舊貸</p></div>
+      <div class="kpi"><p class="k">舊貸反推名目利率</p><p class="v mono" id="oldImpliedRate">—</p><p class="s">依餘額、月付、剩餘期數估算</p></div>
+      <div class="kpi"><p class="k">歷史窗口標的年化</p><p class="v mono" id="assetCagr">—</p><p class="s" id="assetPeriod">—</p></div>
+    </div>
+  </section>
+
+  <section id="comparison">
+    <h2>三、同一薪資月預算下的期末比較</h2>
+    <p class="section-note">每月先計入該月報酬，再於月底還款或投入。預設情況下，方案 B 在舊貸期間投入新舊月付差額，舊貸清償後投入完整新貸月付。</p>
+    <div class="strategy-grid">
+      <article class="strategy">
+        <h3>方案 A｜換貸後一次投入</h3>
+        <p class="amount mono" id="assetAEnd">—</p>
+        <dl>
+          <dt>起始投入</dt><dd class="mono" id="assetAStart">—</dd>
+          <dt>期末貸款餘額</dt><dd class="mono" id="newBalEnd">—</dd>
+          <dt>期末淨值</dt><dd class="mono" id="netAEnd">—</dd>
+          <dt>期間最大回撤</dt><dd class="mono" id="mddA">—</dd>
+        </dl>
+      </article>
+      <article class="strategy">
+        <h3>方案 B｜維持舊貸＋投入月付差額</h3>
+        <p class="amount mono" id="assetBEnd">—</p>
+        <dl>
+          <dt>舊貸期間每月投入</dt><dd class="mono" id="dcaEarly">—</dd>
+          <dt>舊貸結束後每月投入</dt><dd class="mono" id="dcaLate">—</dd>
+          <dt>期末貸款餘額</dt><dd class="mono" id="oldBalEnd">—</dd>
+          <dt>期末淨值</dt><dd class="mono" id="netBEnd">—</dd>
+        </dl>
+      </article>
+    </div>
+    <p class="verdict" id="verdict">—</p>
+    <div class="chart-card">
+      <p class="chart-title"><strong>資產與貸款餘額路徑</strong><span>所有數字均依目前選定的歷史窗口</span></p>
+      <canvas id="pathChart" aria-label="資產與貸款餘額路徑圖"></canvas>
+      <div class="legend">
+        <span class="key" style="--key:#17243b">方案 A 投資資產</span>
+        <span class="key" style="--key:#2d5d9f">方案 B 投資資產</span>
+        <span class="key" style="--key:#7a8799">新貸餘額</span>
+        <span class="key" style="--key:#aab3c0">舊貸餘額</span>
       </div>
-      <div class="ctl">
-        <label>貸款年利率 <span class="val" id="rate-out">2.80%</span></label>
-        <input type="range" id="rate" min="1.5" max="16" step="0.05" value="2.8">
-        <p class="hint">固定名目利率;未含開辦費等費用,實際總費用年百分率通常更高。</p>
+    </div>
+  </section>
+
+  <section id="risk">
+    <h2>四、把三種「水下」分開看</h2>
+    <p class="section-note">整筆貸款缺口回答「賣掉投資能否清掉整筆新貸」；新增負債缺口只看相對原方案新增的債務；策略淨值差則把方案 B 的定期投入也一起納入。</p>
+    <div class="gap-grid">
+      <article class="gap" id="fullGapCard"><p class="label">整筆新貸覆蓋缺口：A 投資資產－新貸餘額</p><p class="big mono" id="fullGapBig">—</p><p class="sub" id="fullGapSub">—</p></article>
+      <article class="gap" id="incGapCard"><p class="label">新增投資負債缺口：A 投資資產－（新貸餘額－舊貸餘額）</p><p class="big mono" id="incGapBig">—</p><p class="sub" id="incGapSub">—</p></article>
+    </div>
+    <div class="chart-card">
+      <p class="chart-title"><strong>缺口與兩策略淨值差</strong><span>零軸以上代表資產足以覆蓋該口徑，或方案 A 領先</span></p>
+      <canvas id="gapChart" aria-label="缺口與兩策略淨值差圖"></canvas>
+      <div class="legend">
+        <span class="key" style="--key:#1c8157">整筆貸款缺口</span>
+        <span class="key" style="--key:#946400">新增負債缺口</span>
+        <span class="key" style="--key:#c63c3f">方案 A 相對方案 B 淨值差</span>
       </div>
-      <div class="ctl" style="grid-column:1 / -1;">
-        <label>進場月份 <span class="val" id="start-out">—</span></label>
-        <input type="range" id="start" min="0" max="100" step="1" value="0">
-      </div>
     </div>
-    <div class="btnrow">
-      <button class="btn primary" onclick="jumpWorst()">跳到一次投入最差區間</button>
-      <button class="btn" onclick="jumpRandom()">隨機進場試手氣</button>
+  </section>
+
+  <section id="history">
+    <h2>五、全部可用歷史窗口</h2>
+    <p class="section-note">勝率是這份資料中重疊歷史窗口的比例，不是未來的統計保證；相鄰窗口高度重疊。00631L 真實模式受限於 2014 年掛牌後的資料長度，96 期只會產生 45 個高度重疊窗口。</p>
+    <div class="kpis">
+      <div class="kpi"><p class="k">方案 A 勝出窗口</p><p class="v mono" id="winRate">—</p><p class="s" id="winCount">—</p></div>
+      <div class="kpi"><p class="k">勝出時差額中位數</p><p class="v mono" id="winMedian">—</p><p class="s" id="winBest">—</p></div>
+      <div class="kpi"><p class="k">落後時差額中位數</p><p class="v mono" id="lossMedian">—</p><p class="s" id="lossWorst">—</p></div>
+      <div class="kpi"><p class="k">本窗口事後交叉名目利率</p><p class="v mono" id="crossRate">—</p><p class="s" id="crossApr">—</p></div>
     </div>
-    <div id="warn631" role="alert">
-      <strong>教學模擬,非真實商品回測:</strong>此模式將 0050 月報酬 ×2、再扣每月 0.1% 費用摩擦(示意值,無實際出處)。
-      它<strong>不是</strong> 00631L 或任何每日正向 2 倍 ETF 的回測——這類商品逐日再平衡,長期報酬無法由月報酬 ×2 推算,主管機關與發行人也警示其不宜長期持有。
-      本模式所有數字僅用於理解「槓桿如何放大進場序列的影響」,不具精確意義。
+    <div class="chart-card">
+      <p class="chart-title"><strong>各進場月份：方案 A 期末淨值－方案 B 期末淨值</strong><span>紅色為換貸一次投入勝出，綠色為維持舊貸＋差額投入勝出</span></p>
+      <canvas class="short" id="distChart" aria-label="歷史窗口策略差額分布圖"></canvas>
     </div>
-  </div>
-
-  <div class="hero-read" id="hero">
-    <p class="label" id="hero-label">一次投入:資產低於貸款餘額的時間(資不抵債缺口)</p>
-    <p class="big mono" id="hero-big">—</p>
-    <p class="sub" id="hero-sub">—</p>
-  </div>
-
-  <div class="stats">
-    <div class="stat"><p class="k">每月償還金 / 定額</p><p class="v" id="pmt">—</p><p class="s" id="cagr">—</p></div>
-    <div class="stat"><p class="k">一次投入 期末淨損益</p><p class="v" id="lump">—</p><p class="s" id="lump-s">—</p></div>
-    <div class="stat"><p class="k">定期定額 期末淨損益</p><p class="v" id="dca">—</p><p class="s" id="dca-s">—</p></div>
-    <div class="stat"><p class="k">一次投入 最大回撤</p><p class="v" id="mdd">—</p><p class="s">月資料估計;盤中實際更深</p></div>
-  </div>
-
-  <p class="verdict" id="verdict"></p>
-
-  <div class="panel" style="margin-top:14px;">
-    <p class="flow-title">借錢的代價,換到多少優勢?(成本效益並列,非同一筆利潤的分配)</p>
-    <div class="flow-row">
-      <span class="flow-k">付出的利息(確定成本)</span>
-      <div class="flow-track"><div class="flow-bar" id="bar-bank" style="background:var(--loan); width:0%"></div></div>
-      <span class="flow-v mono" id="v-bank">—</span>
+    <div class="alert" style="margin-top:14px">
+      <p><strong>交叉利率不是建議 APR 上限。</strong>它是在已知這段歷史報酬順序後，反算哪個「新貸名目利率」會令兩方案期末淨值相同；旁邊另列該利率在相同開辦費下對應的 APR。大多頭可能產生很高的事後交叉利率，但借款當下無法知道自己會走哪條路徑。</p>
     </div>
-    <div class="flow-row">
-      <span class="flow-k">相對定期定額的淨優勢(事後效益)</span>
-      <div class="flow-track"><div class="flow-bar" id="bar-you" style="background:var(--up); width:0%"></div></div>
-      <span class="flow-v mono" id="v-you">—</span>
+  </section>
+
+  <section id="method">
+    <h2>六、模型怎麼公平比較</h2>
+    <div class="method">
+      <article><h3>1｜撥款日</h3><p>方案 A 投入「新貸本金－開辦費－舊貸清償本金－提前清償費」。方案 B 維持原狀，不虛構一筆可以投入的 42 萬。</p></article>
+      <article><h3>2｜每個月底</h3><p>兩案共用同一薪資預算。舊貸還在時，方案 B 把新舊月付差額投入；舊貸結束後，改投入完整新貸月付。若舊月付反而較高，模型會將差額投入方案 A，維持公平。</p></article>
+      <article><h3>3｜比較基準</h3><p>以「投資資產－各自貸款餘額」比較淨值。開辦費與提前清償費已降低方案 A 的起始投入，不會被遺漏。</p></article>
     </div>
-    <p class="ceiling" id="ceiling">—</p>
-  </div>
+  </section>
 
-  <div class="chart-box"><canvas id="pathChart" aria-label="資產路徑圖" role="img"></canvas></div>
-  <p class="legend-note">實線=一次投入資產(<span style="color:var(--down); font-weight:500;">變綠的路段=資產低於貸款餘額</span>)、細線=定期定額資產、虛線=貸款餘額。</p>
-</section>
+  <footer>
+    <p><strong>資料：</strong>00631L 模式取自元大投信官方歷史淨值介面，共取得 2014/10/31–2026/07/24 的 2,860 筆日資料，再轉為 2014/11–2026/06 的 140 筆完整月報酬。0050 模式沿用使用者提供之還原息月報酬序列（2003/07–2026/06），原註記來源為 havocFuture 個人整理資料。本檔已內嵌資料，開啟時不連網。</p>
+    <p><strong>分割處理：</strong>00631L 於 2026/03 進行 1 單位換發 22 單位的分割；分割前淨值除以 22，2026/03/25–03/30 停止交易期間則以官方基金淨資產／流通單位數還原淨值。2× 教學模式仍不是真實 00631L。</p>
+    <p><strong>重要限制：</strong>模型未計入稅費、券商交易成本、買賣折溢價、浮動／分段利率、信用保險、帳管費、利率調整、舊貸部分月提前清償規則與收入中斷。若銀行從撥款外另行收費，請依實際現金流調整。</p>
+    <p><strong>免責聲明：</strong>本頁為歷史情境分析與教育用途，不構成投資、信貸或財務建議。長期不賣能降低被迫在低點退出的操作風險，但不能消除槓桿 ETF 的路徑耗損、商品結構風險與長期落後風險。</p>
+  </footer>
+</main>
 
-<section class="sec">
-  <h2>二、全部歷史窗口的勝負分布</h2>
-  <p class="sec-note">把資料裡每一個可取的同長度窗口都跑一次:每根直條=一個進場月份,「一次投入期末資產 − 定期定額期末資產」(兩者總投入現金相同)。紅=一次投入勝出,綠=定期定額勝出。</p>
-  <div class="stats" style="margin-top:0;">
-    <div class="stat"><p class="k">一次投入勝率</p><p class="v" id="wr">—</p><p class="s" id="wr-s">—</p></div>
-    <div class="stat"><p class="k">贏的時候(中位數)</p><p class="v" id="wmed" style="color:var(--up)">—</p><p class="s" id="wmax">—</p></div>
-    <div class="stat"><p class="k">輸的時候(中位數)</p><p class="v" id="lmed" style="color:var(--down)">—</p><p class="s" id="lmax">—</p></div>
-  </div>
-  <div class="chart-box short"><canvas id="distChart" aria-label="勝負分布圖" role="img"></canvas></div>
-  <p class="legend-note">注意:相鄰窗口高度重疊,不是獨立樣本;輸的窗口集中在「高點進場」,不是隨機分布。勝率高 ≠ 你這一次會贏——你只玩一次。</p>
-</section>
-
-<section class="sec">
-  <h2>三、按下借款鍵之前,三個問題</h2>
-  <p class="sec-note">模擬器算得出「資不抵債的缺口」,算不出你的現金流存活力——收入穩定度、預備金、其他債務都不在模型裡,只能靠你自答。答不出這三題,建議先別做。</p>
-  <div class="questions">
-    <div class="q"><p>把上面的劇本切到最差區間,看著水下月數——假設那就是你,而且期間<strong>剛好碰上失業三個月</strong>。你的存款撐得起「月付金+固定生活支出」幾個月?低於六個月,請先縮小貸款金額,直到撐得起為止。</p></div>
-    <div class="q"><p>找一個你信任、而且會對你說真話的人(伴侶、家人或朋友都行),你能不能向對方<strong>完整解釋這個策略而不心虛</strong>——包括最深水下缺口的那個數字?解釋不下去的部分,就是不該做的部分。</p></div>
-    <div class="q"><p>寫得出「不作為承諾」嗎:下跌不停損、不借新錢攤平、不中途換標的,提前結束的唯一條件是收入或現金流的結構性惡化(例如失業、健康狀況)。<strong>做不到「什麼都不做」,時間就不會站在你這邊。</strong><br><span class="fine">(本條僅適用於市值型原型 ETF;每日槓桿型商品連發行人都警示不宜長期持有,不適用「長抱不動」原則。)</span></p></div>
-  </div>
-</section>
-
-<footer>
-  <p><strong>資料與假設</strong>:0050 還原除權息月報酬(2003/07–2026/06)取自 <a href="https://havocfuture.tw/0050-performance" target="_blank" rel="noopener">havocFuture</a>——為該站作者自行爬取證交所股價與除權息資料計算的個人資料庫,非官方驗證資料,小數第二位可能有誤差。「2× 槓桿」為教學模擬,非任何實際商品之回測。模型假設:配息全數再投入;還款與定額投入皆於月底、時點一致;固定名目利率、本息平均攤還。未計入:證券手續費與稅負、信貸開辦費/帳管費、提前清償違約金、浮動或分段利率。「總利息大致固定」僅在固定利率、按時攤還且無上述費用時近似成立;實際信貸的總費用年百分率(APR)通常高於名目利率。</p>
-  <p><strong>免責聲明</strong>:本頁為歷史回測與教育用途,不構成任何投資、信貸或財務建議。歷史報酬不代表未來,槓桿投資可能造成重大損失。實際授信條件請洽金融機構,重大財務決策請諮詢持牌專業人員。</p>
-</footer>
-
-</div>
 <script>
-const R = [
-10.22,9.91,-0.49,7.38,-6.25,2.04,
-5.66,4.18,-3.09,-3.04,-4.53,-1.32,-6.35,7.73,1,-1.93,1.74,6.59,
--2.91,3.27,-3.87,-2.07,3.51,4.35,1.43,-3.05,1.61,-4.24,7.37,5.04,
-0.2,2.04,0.76,7.58,-5.99,-0.56,-3.2,5.54,3.87,1.86,5.43,2.58,
--1.82,1.85,-2.25,0.8,5.01,8.79,2,-1.06,5.72,4.94,-11.97,-0.57,
--10.58,10.74,-0.66,5.71,-2.66,-11.58,-4.73,2.39,-16.87,-13.18,-12.07,2.3,
--7.21,8.36,10.86,15.04,13.88,-7.37,10.26,-1.16,10.01,-1.26,2.03,7.12,
--6.11,-2.74,5.24,1.01,-8.58,-1.1,8.78,-1.11,8.26,0.94,1.96,7.53,
-2.61,-5.56,0.08,4.11,0,-5.08,1.78,-8.93,-5.32,4.88,-7.89,3.6,
-4.3,7.8,-1.96,-5.19,-3.65,0.1,1.79,3.23,4.55,-5.3,6.25,0.47,
-1.49,1.1,-0.18,2.36,0.98,-3.25,2.72,-1.33,2.33,3.7,-0.6,2,
--1.87,1.22,3.09,1.5,3.44,4.52,1.21,3.67,-5.64,2.44,3.37,-0.96,
-1.72,3.38,-1.78,3.48,-0.49,-2.39,-4.68,-5.82,0.16,4.45,-3.16,-0.74,
--1.98,2.85,5.55,-4.72,2.52,3.64,6.03,1.24,2.23,2.33,-1.24,0.14,
-2.09,2.16,0.75,1.15,2.62,5.1,2.05,1.97,-2.11,4.93,-3.46,-0.12,
-5.7,-2.72,0.73,-3.56,0.94,0.87,5.91,1.64,-0.06,-10.76,-1.03,-1.63,
-1.53,4.44,1.93,4.61,-5.25,3.12,3.22,-1.15,3.36,6.5,1.55,5.96,
--4.21,-1.45,-14.1,12.28,-1.23,6.45,16.3,-1.93,1.18,0,10,7.9,
-7.15,4.06,1.01,4.34,-2.49,1.35,-1.84,3.16,-2.35,-0.91,1.62,5.43,
--0.58,-2.15,-0.29,-6.77,0.82,-10.79,3.51,-0.34,-12.03,-4.25,17.47,-5.29,
-9.71,0.42,2.36,-3.45,7.45,2.34,1.22,-2.41,-2.43,-1.22,8.42,3.12,
-1.5,6.66,10.19,0.22,4.9,12.32,-2.51,0.28,1.43,4.27,-2.37,4.54,
-4.26,-4.37,-10.26,-2.4,6.61,7.62,7.35,1.84,10.1,12.02,-3.71,5.21,
-12.23,11.78,-10.84,25.09,16.46,2.28
-];
-const FEE_2X = 0.1;
-let target = 0, years = 7;
-const $ = id => document.getElementById(id);
-const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const fmtNT = v => (v < 0 ? "-" : "") + "NT$" + Math.round(Math.abs(v)).toLocaleString();
-const fmtSigned = v => (v < 0 ? "-" : "+") + "NT$" + Math.round(Math.abs(v)).toLocaleString();
-const fmtWan = v => (v < 0 ? "-" : "+") + (Math.abs(v) / 10000).toFixed(1) + " 萬";
-const label = idx => {
-  const y = 2003 + Math.floor((idx + 6) / 12);
-  const m = ((idx + 6) % 12) + 1;
-  return y + "/" + String(m).padStart(2, "0");
-};
-const median = a => {
-  const s = [...a].sort((x, y) => x - y), h = Math.floor(s.length / 2);
-  return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2;
-};
-function mRet(idx) {
-  const r = R[idx];
-  return target === 0 ? r / 100 : (2 * r - FEE_2X) / 100;
-}
-function annuityPmt(P, annualRate, n) {
-  const i = annualRate / 12;
-  return P * i / (1 - Math.pow(1 + i, -n));
-}
-function lumpFactor(s, n) {
-  let f = 1;
-  for (let m = 0; m < n; m++) f *= 1 + mRet(s + m);
-  return f;
-}
-function worstStart(n) {
-  let best = 0, bestF = Infinity;
-  for (let s = 0; s + n <= R.length; s++) {
-    const f = lumpFactor(s, n);
-    if (f < bestF) { bestF = f; best = s; }
-  }
-  return best;
-}
-let pathChart = null, distChart = null;
-
-function update() {
-  const n = years * 12;
-  const P = +$("amt").value;
-  const rate = +$("rate").value / 100;
-  const i = rate / 12;
-  const maxStart = R.length - n;
-  if (+$("start").max !== maxStart) $("start").max = maxStart;
-  if (+$("start").value > maxStart) $("start").value = maxStart;
-  const s = +$("start").value;
-  const M = annuityPmt(P, rate, n);
-  const totalPaid = M * n;
-
-  $("amt-out").textContent = (P / 10000).toLocaleString() + " 萬";
-  $("rate-out").textContent = (+$("rate").value).toFixed(2) + "%";
-  $("start-out").textContent = label(s) + " 進場 → " + label(s + n - 1);
-
-  let V = P, D = 0, bal = P, peak = P, mdd = 0;
-  const sA = [P], sB = [0], sL = [P], uwFlag = [false], labels = ["進場"];
-  let uw = 0, streak = 0, maxStreak = 0, minGap = 0, minGapMonth = 0;
-  for (let m = 0; m < n; m++) {
-    const r = mRet(s + m);
-    V *= 1 + r;
-    D = D * (1 + r) + M;
-    bal = Math.max(0, bal * (1 + i) - M);
-    if (V > peak) peak = V;
-    mdd = Math.min(mdd, V / peak - 1);
-    const under = V < bal;
-    if (under) { uw++; streak++; if (streak > maxStreak) maxStreak = streak; }
-    else streak = 0;
-    if (V - bal < minGap) { minGap = V - bal; minGapMonth = m + 1; }
-    sA.push(Math.round(V)); sB.push(Math.round(D)); sL.push(Math.round(bal));
-    uwFlag.push(under);
-    labels.push(label(s + m));
-  }
-  const cagr = (Math.pow(V / P, 12 / n) - 1) * 100;
-  const profitA = V - totalPaid, profitB = D - totalPaid;
-
-  $("pmt").textContent = fmtNT(M);
-  $("cagr").textContent = "此區間標的年化 " + cagr.toFixed(1) + "%";
-  $("lump").textContent = fmtSigned(profitA);
-  $("lump").style.color = profitA >= 0 ? css("--up") : css("--down");
-  $("lump-s").textContent = "期末 " + fmtNT(V) + " / 總付出 " + fmtNT(totalPaid);
-  $("dca").textContent = fmtSigned(profitB);
-  $("dca").style.color = profitB >= 0 ? css("--up") : css("--down");
-  $("dca-s").textContent = "期末 " + fmtNT(D) + " / 相同金流";
-  $("mdd").textContent = (mdd * 100).toFixed(1) + "%";
-  $("mdd").style.color = mdd < -0.3 ? css("--down") : css("--ink");
-
-  const hero = $("hero");
-  if (uw > 0) {
-    hero.classList.add("underwater");
-    $("hero-big").textContent = "水下合計 " + uw + " 個月";
-    $("hero-big").style.color = css("--down");
-    $("hero-sub").textContent = "最長連續 " + maxStreak + " 個月;最深在第 " + minGapMonth + " 個月——全部賣掉仍差 " + fmtNT(minGap).replace("-", "") + " 才能清償貸款";
-  } else {
-    hero.classList.remove("underwater");
-    $("hero-big").textContent = "水下 0 個月";
-    $("hero-big").style.color = css("--ink");
-    $("hero-sub").textContent = "這個劇本裡,資產全程高於貸款餘額——先別下結論,按一下「一次投入最差區間」";
-  }
-
-  const diff = profitA - profitB;
-  const interest = totalPaid - P;
-  let verdictText = diff >= 0
-    ? "這個劇本:借錢一次投入比定期定額多賺 " + fmtNT(diff) + "。"
-    : "這個劇本:定期定額反而多賺 " + fmtNT(-diff) + "——先跌後漲的序列讓分批進場撿到便宜籌碼。";
-  if (diff > 0 && diff < interest) {
-    verdictText += " 提醒:換到的優勢比付出的利息小——成本是確定的,優勢是事後才知道的,值不值得請自行判斷。";
-  }
-  $("verdict").textContent = verdictText;
-
-  const maxAbs = Math.max(interest, Math.abs(diff), 1);
-  $("bar-bank").style.width = (interest / maxAbs * 100).toFixed(1) + "%";
-  $("bar-you").style.width = (Math.abs(diff) / maxAbs * 100).toFixed(1) + "%";
-  $("bar-you").style.background = diff >= 0 ? css("--up") : css("--down");
-  $("v-bank").textContent = fmtNT(interest);
-  $("v-you").textContent = fmtSigned(diff);
-  $("v-you").style.color = diff >= 0 ? css("--up") : css("--down");
-
-  const fLump = V / P, fDca = D / M;
-  const Mstar = P * fLump / fDca;
-  const ceilEl = $("ceiling");
-  if (Mstar <= P / n) {
-    ceilEl.className = "ceiling bad";
-    ceilEl.textContent = "事後交叉利率:不存在。就這段歷史路徑而言,即使 0% 利率借錢,一次投入也輸給定期定額。";
-  } else {
-    let lo = 0.000001, hi = 0.5;
-    const g = r => P * (r / 12) / (1 - Math.pow(1 + r / 12, -n)) - Mstar;
-    if (g(hi) < 0) {
-      ceilEl.className = "ceiling";
-      ceilEl.textContent = "事後交叉利率:高於 50%。這段歷史行情極強,事後來看利率高低幾乎不影響勝負——這是事後之明,不是未來的保證。";
-    } else {
-      for (let k = 0; k < 60; k++) {
-        const mid = (lo + hi) / 2;
-        (g(mid) < 0) ? lo = mid : hi = mid;
-      }
-      const ceil = (lo + hi) / 2 * 100;
-      const cur = +$("rate").value;
-      if (cur > ceil) {
-        ceilEl.className = "ceiling bad";
-        ceilEl.textContent = "事後交叉利率:" + ceil.toFixed(1) + "%。你設定的 " + cur.toFixed(2) + "% 已超過——就這段已知的歷史路徑而言,借錢一次投入不如直接定期定額。";
-      } else {
-        ceilEl.className = "ceiling";
-        ceilEl.textContent = "事後交叉利率:" + ceil.toFixed(1) + "%——在這段已知的歷史路徑中,貸款利率高於此值,一次投入就輸給定期定額(目前設定 " + cur.toFixed(2) + "%)。注意:這是事後才算得出的數字,借款當下沒有人知道自己會走哪段路徑。";
-      }
-    }
-  }
-
-  if (!window.Chart) { updateDist(n, P, M); return; }
-  if (pathChart) pathChart.destroy();
-  pathChart = new Chart($("pathChart"), {
-    type: "line",
-    data: { labels, datasets: [
-      { label: "一次投入資產", data: sA, borderColor: css("--ink"), borderWidth: 2.5, pointRadius: 0, tension: 0.1,
-        segment: { borderColor: ctx => uwFlag[ctx.p1DataIndex] ? css("--down") : css("--ink") } },
-      { label: "定期定額資產", data: sB, borderColor: "#9AA7B9", borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
-      { label: "貸款餘額", data: sL, borderColor: css("--loan"), borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0, tension: 0.1 }
-    ]},
-    options: {
-      responsive: true, maintainAspectRatio: false, animation: false,
-      interaction: { mode: "index", intersect: false },
-      plugins: {
-        legend: { labels: { color: css("--ink-2"), boxWidth: 18, boxHeight: 2, font: { family: "'Noto Sans TC'" } } },
-        tooltip: { callbacks: { label: c => c.dataset.label + ": " + fmtNT(c.parsed.y) } }
-      },
-      scales: {
-        x: { ticks: { color: css("--ink-3"), maxTicksLimit: 8, maxRotation: 0 }, grid: { display: false } },
-        y: { ticks: { color: css("--ink-3"), callback: v => (v / 10000).toLocaleString() + "萬" }, grid: { color: "#E7EBF1" } }
-      }
-    }
-  });
-  updateDist(n, P, M);
-}
-
-function updateDist(n, P, M) {
-  const labels = [], diffs = [], colors = [];
-  for (let s = 0; s + n <= R.length; s++) {
-    let V = P, D = 0;
-    for (let m = 0; m < n; m++) {
-      const r = mRet(s + m);
-      V *= 1 + r; D = D * (1 + r) + M;
-    }
-    const d = V - D;
-    labels.push(label(s)); diffs.push(Math.round(d));
-    colors.push(d > 0 ? css("--up") : css("--down"));
-  }
-  const wins = diffs.filter(d => d > 0), losses = diffs.filter(d => d <= 0);
-  const total = diffs.length;
-  $("wr").textContent = (wins.length / total * 100).toFixed(1) + "%";
-  $("wr-s").textContent = total + " 個窗口:贏 " + wins.length + "、輸 " + losses.length;
-  $("wmed").textContent = wins.length ? fmtWan(median(wins)) : "—";
-  $("wmax").textContent = wins.length ? "最多贏 " + fmtWan(Math.max(...diffs)) : "";
-  $("lmed").textContent = losses.length ? fmtWan(median(losses)) : "0 次";
-  $("lmax").textContent = losses.length ? "最慘輸 " + fmtWan(Math.min(...diffs)) + "(" + labels[diffs.indexOf(Math.min(...diffs))] + " 進場)" : "此設定下從未輸過";
-
-  if (!window.Chart) return;
-  if (distChart) distChart.destroy();
-  distChart = new Chart($("distChart"), {
-    type: "bar",
-    data: { labels, datasets: [{ data: diffs, backgroundColor: colors, borderWidth: 0, barPercentage: 1, categoryPercentage: 1 }] },
-    options: {
-      responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { title: t => t[0].label + " 進場", label: c => "一次投入相對定期定額: " + fmtWan(c.parsed.y) } }
-      },
-      scales: {
-        x: { ticks: { color: css("--ink-3"), maxRotation: 0, autoSkip: false, callback: function(v){ const l = this.getLabelForValue(v); return l.endsWith("/01") ? l.slice(0, 4) : ""; } }, grid: { display: false } },
-        y: { ticks: { color: css("--ink-3"), callback: v => (v / 10000).toLocaleString() + "萬" }, grid: { color: "#E7EBF1" } }
-      }
-    }
-  });
-}
-
-function setTarget(t) {
-  target = t;
-  $("t0050").classList.toggle("on", t === 0);
-  $("t631").classList.toggle("on", t === 1);
-  $("t631").classList.toggle("risky", t === 1);
-  $("warn631").classList.toggle("show", t === 1);
-  update();
-}
-function setYears(y, btn) {
-  years = y;
-  document.querySelectorAll("[data-y]").forEach(b => b.classList.remove("on"));
-  btn.classList.add("on");
-  update();
-}
-function jumpWorst() {
-  $("start").value = worstStart(years * 12);
-  update();
-}
-function jumpRandom() {
-  const maxS = R.length - years * 12;
-  $("start").value = Math.floor(Math.random() * (maxS + 1));
-  update();
-}
-["amt", "rate", "start"].forEach(id => $(id).addEventListener("input", update));
-
-function ensureChart(cb) {
-  if (window.Chart) return cb();
-  const alts = [
-    "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js",
-    "https://unpkg.com/chart.js@4.4.4/dist/chart.umd.min.js"
+(() => {
+  "use strict";
+  const R = [
+    10.22,9.91,-0.49,7.38,-6.25,2.04,5.66,4.18,-3.09,-3.04,-4.53,-1.32,-6.35,7.73,1,-1.93,1.74,6.59,
+    -2.91,3.27,-3.87,-2.07,3.51,4.35,1.43,-3.05,1.61,-4.24,7.37,5.04,0.2,2.04,0.76,7.58,-5.99,-0.56,
+    -3.2,5.54,3.87,1.86,5.43,2.58,-1.82,1.85,-2.25,0.8,5.01,8.79,2,-1.06,5.72,4.94,-11.97,-0.57,
+    -10.58,10.74,-0.66,5.71,-2.66,-11.58,-4.73,2.39,-16.87,-13.18,-12.07,2.3,-7.21,8.36,10.86,15.04,
+    13.88,-7.37,10.26,-1.16,10.01,-1.26,2.03,7.12,-6.11,-2.74,5.24,1.01,-8.58,-1.1,8.78,-1.11,
+    8.26,0.94,1.96,7.53,2.61,-5.56,0.08,4.11,0,-5.08,1.78,-8.93,-5.32,4.88,-7.89,3.6,4.3,7.8,
+    -1.96,-5.19,-3.65,0.1,1.79,3.23,4.55,-5.3,6.25,0.47,1.49,1.1,-0.18,2.36,0.98,-3.25,2.72,
+    -1.33,2.33,3.7,-0.6,2,-1.87,1.22,3.09,1.5,3.44,4.52,1.21,3.67,-5.64,2.44,3.37,-0.96,
+    1.72,3.38,-1.78,3.48,-0.49,-2.39,-4.68,-5.82,0.16,4.45,-3.16,-0.74,-1.98,2.85,5.55,-4.72,
+    2.52,3.64,6.03,1.24,2.23,2.33,-1.24,0.14,2.09,2.16,0.75,1.15,2.62,5.1,2.05,1.97,-2.11,
+    4.93,-3.46,-0.12,5.7,-2.72,0.73,-3.56,0.94,0.87,5.91,1.64,-0.06,-10.76,-1.03,-1.63,1.53,
+    4.44,1.93,4.61,-5.25,3.12,3.22,-1.15,3.36,6.5,1.55,5.96,-4.21,-1.45,-14.1,12.28,-1.23,
+    6.45,16.3,-1.93,1.18,0,10,7.9,7.15,4.06,1.01,4.34,-2.49,1.35,-1.84,3.16,-2.35,-0.91,
+    1.62,5.43,-0.58,-2.15,-0.29,-6.77,0.82,-10.79,3.51,-0.34,-12.03,-4.25,17.47,-5.29,9.71,
+    0.42,2.36,-3.45,7.45,2.34,1.22,-2.41,-2.43,-1.22,8.42,3.12,1.5,6.66,10.19,0.22,4.9,
+    12.32,-2.51,0.28,1.43,4.27,-2.37,4.54,4.26,-4.37,-10.26,-2.4,6.61,7.62,7.35,1.84,10.1,
+    12.02,-3.71,5.21,12.23,11.78,-10.84,25.09,16.46,2.28
   ];
-  (function tryNext(i) {
-    if (i >= alts.length) {
-      document.querySelectorAll(".chart-box").forEach(b => {
-        b.innerHTML = '<p style="font-size:14px; color:var(--ink-2); padding:24px 8px;">圖表元件載入失敗(網路或瀏覽器阻擋了圖表函式庫)。上方數字仍為正確計算結果;建議改用 Chrome / Safari 一般瀏覽器開啟,或重新整理。</p>';
-        b.style.height = "auto";
-      });
-      cb();
-      return;
+  const NAV631_RETURNS = [
+    4.99755022,0.69995334,2.08526413,5.62868815,-2.1486893,5.79710145,-2.61519303,-6.47911338,
+    -10.16408387,-12.07508879,1.84650894,10.02832861,-6.28218332,-0.6043956,-3.4273079,6.06754436,
+    9.71397733,-9.34579439,4.88334238,5.2250388,11.99606686,2.89727831,4.09556314,4.54918033,
+    -1.80321443,0.23952096,3.90282756,5.5960138,1.45190563,1.86046512,4.53108535,9.5094086,
+    4.20374348,3.79858657,-3.91489362,9.30026572,-6.07779579,0.80529192,10.18544936,-5.74831693,
+    2.1978022,-5.80645161,3.62442922,1.01900303,9.78735005,2.03625528,-0.63275736,-21.650747,
+    1.84432635,-3.65254758,5.03345014,9.00818926,4.31274346,7.81541744,-9.89609104,6.61724327,
+    5.84599536,-2.57907543,5.76923077,11.31050767,2.58803564,10.46319272,-8.79820292,-3.18144499,
+    -27.81428874,31.13069016,-0.38073908,13.96133094,26.02091142,-0.72010019,-0.4415011,-0.22172949,
+    22.68253968,16.2375469,7.2128228,11.87707641,6.08760208,14.1270119,-6.52257224,8.88816005,
+    -3.90813253,4.63913486,-5.79645024,0.12719612,4.27153632,10.97997411,-5.60548885,-0.52333188,
+    -0.09498758,-11.83354055,1.23600166,-19.39528024,6.40439158,0.85984523,-21.37917969,-7.1686747,
+    32.0311486,-8.75847832,17.24843784,2.92198842,4.71386483,-3.84517009,13.14062777,5.64263323,
+    3.96884273,-5.57260078,-3.43055765,-4.71830986,17.7383592,5.54509312,0.50885541,11.84167269,
+    14.46208113,0.28248588,8.69142125,18.0425973,-6.41890543,-1.79584524,-0.67326905,4.63112783,
+    -5.70091114,6.16080135,4.76369405,-4.81409158,-20.20096295,-10.51941238,12.62386397,11.05268638,
+    14.8516244,5.87779093,14.04834419,19.33880945,-5.12406526,8.4729064,22.29378251,20.81335944,
+    -21.14900989,48.54469854,28.37648705,4.55164895
+  ];
+  const ids = [
+    "newPrincipal","newMonths","newRate","originationFee","oldPrincipal","prepayFee",
+    "oldPayment","oldMonths","simFee","start"
+  ];
+  const $ = id => document.getElementById(id);
+  let target = 0;
+  const defaults = {newPrincipal:420000,newMonths:96,newRate:6.76,originationFee:3088,oldPrincipal:184500,prepayFee:0,oldPayment:2954,oldMonths:76,simFee:0.10};
+  const colors = {ink:"#17243b",blue:"#2d5d9f",loan:"#7a8799",old:"#aab3c0",green:"#1c8157",amber:"#946400",red:"#c63c3f",grid:"#e6eaf0",muted:"#66758b"};
+
+  const num = id => Math.max(0, Number($(id).value) || 0);
+  const money = v => (v < 0 ? "−" : "") + "NT$" + Math.round(Math.abs(v)).toLocaleString("zh-TW");
+  const signed = v => (v < 0 ? "−" : "+") + "NT$" + Math.round(Math.abs(v)).toLocaleString("zh-TW");
+  const pct = (v,d=2) => Number.isFinite(v) ? (v*100).toFixed(d)+"%" : "—";
+  const median = arr => {
+    if (!arr.length) return NaN;
+    const a=[...arr].sort((x,y)=>x-y), h=Math.floor(a.length/2);
+    return a.length%2?a[h]:(a[h-1]+a[h])/2;
+  };
+  const sourceLength = () => target===0 ? NAV631_RETURNS.length : R.length;
+  const sourceLabelFor631 = idx => {
+    const absolute=2014*12+10+idx;
+    return Math.floor(absolute/12)+"/"+String(absolute%12+1).padStart(2,"0");
+  };
+  const sourceLabel = idx => {
+    const startYear=target===0?2014:2003, startMonth=target===0?11:7;
+    const absolute=startYear*12+(startMonth-1)+idx;
+    return Math.floor(absolute/12)+"/"+String(absolute%12+1).padStart(2,"0");
+  };
+  const monthlyReturn = idx => {
+    if(target===0)return NAV631_RETURNS[idx]/100;
+    if(target===1)return R[idx]/100;
+    return (2*R[idx]-num("simFee"))/100;
+  };
+  const payment = (principal, annual, months) => {
+    if (!months) return 0;
+    const i=annual/12;
+    return i===0 ? principal/months : principal*i/(1-Math.pow(1+i,-months));
+  };
+  const rateFromCashflows = (principalReceived,pmt,months) => {
+    if (!(principalReceived>0&&pmt>0&&months>0)) return NaN;
+    if (pmt*months<=principalReceived) return 0;
+    let lo=0,hi=1;
+    for(let k=0;k<100;k++){
+      const mid=(lo+hi)/2, pv=pmt*(1-Math.pow(1+mid,-months))/mid;
+      if(pv>principalReceived) lo=mid; else hi=mid;
     }
-    const sc = document.createElement("script");
-    sc.src = alts[i];
-    sc.onload = () => cb();
-    sc.onerror = () => tryNext(i + 1);
-    document.head.appendChild(sc);
-  })(0);
-}
-ensureChart(jumpWorst);
+    return (lo+hi)/2;
+  };
+  const impliedOldMonthlyRate = (P,pmt,n) => {
+    if(!P||!pmt||!n) return 0;
+    if(pmt*n<P) return NaN;
+    if(Math.abs(pmt*n-P)<.01) return 0;
+    let lo=0,hi=.2;
+    for(let k=0;k<100;k++){
+      const mid=(lo+hi)/2;
+      const calc=payment(P,mid*12,n);
+      if(calc<pmt) lo=mid; else hi=mid;
+    }
+    return (lo+hi)/2;
+  };
+  const inputs = () => {
+    const newP=num("newPrincipal"), n=Math.round(num("newMonths")), annual=num("newRate")/100;
+    const fee=num("originationFee"), oldP=num("oldPrincipal"), preFee=num("prepayFee");
+    const oldPmt=num("oldPayment"), oldN=Math.round(num("oldMonths"));
+    const invest=Math.max(0,newP-fee-oldP-preFee);
+    const newPmt=payment(newP,annual,n);
+    const oldI=impliedOldMonthlyRate(oldP,oldPmt,oldN);
+    return {newP,n,annual,fee,oldP,preFee,oldPmt,oldN,invest,newPmt,oldI};
+  };
+
+  function simulate(start, annualOverride=null, keepSeries=true){
+    const x=inputs(), annual=annualOverride===null?x.annual:annualOverride;
+    const newPmt=payment(x.newP,annual,x.n), newI=annual/12, oldI=Number.isFinite(x.oldI)?x.oldI:0;
+    let a=x.invest,b=0,newBal=x.newP,oldBal=x.oldP,peakA=a,mddA=0;
+    let fullCount=0,fullStreak=0,fullMaxStreak=0,fullMin=Infinity,fullMinAt=0;
+    let incCount=0,incStreak=0,incMaxStreak=0,incMin=Infinity,incMinAt=0;
+    const series={labels:["撥款日"],a:[a],b:[b],newBal:[newBal],oldBal:[oldBal],
+      full:[a-newBal],inc:[a-Math.max(0,newBal-oldBal)],adv:[(a-newBal)-(b-oldBal)]};
+    let earlyB=0,lateB=0;
+    for(let m=0;m<x.n;m++){
+      const r=monthlyReturn(start+m);
+      a*=1+r;b*=1+r;
+      const oldDue=m<x.oldN&&oldBal>0 ? Math.min(x.oldPmt,oldBal*(1+oldI)) : 0;
+      const commonBudget=Math.max(newPmt,oldDue);
+      const addA=Math.max(0,commonBudget-newPmt);
+      const addB=Math.max(0,commonBudget-oldDue);
+      a+=addA;b+=addB;
+      if(m===0) earlyB=addB;
+      if(m>=x.oldN) lateB=addB;
+      newBal=Math.max(0,newBal*(1+newI)-newPmt);
+      oldBal=Math.max(0,oldBal*(1+oldI)-oldDue);
+      peakA=Math.max(peakA,a);
+      if(peakA>0)mddA=Math.min(mddA,a/peakA-1);
+      const full=a-newBal, incremental=a-Math.max(0,newBal-oldBal), adv=(a-newBal)-(b-oldBal);
+      if(full<0){fullCount++;fullStreak++;fullMaxStreak=Math.max(fullMaxStreak,fullStreak)}else fullStreak=0;
+      if(incremental<0){incCount++;incStreak++;incMaxStreak=Math.max(incMaxStreak,incStreak)}else incStreak=0;
+      if(full<fullMin){fullMin=full;fullMinAt=m+1}
+      if(incremental<incMin){incMin=incremental;incMinAt=m+1}
+      if(keepSeries){
+        series.labels.push(sourceLabel(start+m));series.a.push(a);series.b.push(b);series.newBal.push(newBal);series.oldBal.push(oldBal);
+        series.full.push(full);series.inc.push(incremental);series.adv.push(adv);
+      }
+    }
+    return {a,b,newBal,oldBal,netA:a-newBal,netB:b-oldBal,adv:(a-newBal)-(b-oldBal),mddA,
+      fullCount,fullMaxStreak,fullMin,fullMinAt,incCount,incMaxStreak,incMin,incMinAt,series,earlyB,lateB,newPmt};
+  }
+
+  function historicalWindows(){
+    const x=inputs(), max=Math.max(0,sourceLength()-x.n), rows=[];
+    for(let s=0;s<=max;s++){const q=simulate(s,null,false);rows.push({s,adv:q.adv,a:q.a})}
+    return rows;
+  }
+  function worstStart(){
+    const rows=historicalWindows();
+    return rows.reduce((w,r)=>r.adv<w.adv?r:w,rows[0]).s;
+  }
+  function crossRate(start){
+    const at0=simulate(start,0,false).adv, at50=simulate(start,.5,false).adv;
+    if(at0<0) return {kind:"none"};
+    if(at50>0) return {kind:"high"};
+    let lo=0,hi=.5;
+    for(let k=0;k<70;k++){
+      const mid=(lo+hi)/2;
+      if(simulate(start,mid,false).adv>0)lo=mid;else hi=mid;
+    }
+    return {kind:"value",annual:(lo+hi)/2};
+  }
+
+  function setText(id,text){$(id).textContent=text}
+  function styleValue(id,v){$(id).style.color=v>=0?"var(--red)":"var(--green)"}
+  function gapSummary(prefix,count,maxStreak,min,minAt,total){
+    setText(prefix+"Big",count?("水下 "+count+" / "+total+" 個月"):"全期未水下");
+    setText(prefix+"Sub",count?("最長連續 "+maxStreak+" 個月；最深在第 "+minAt+" 個月，缺口 "+money(Math.abs(min))):"每個月月底均在零軸以上。");
+    const card=$(prefix+"Card");card.classList.toggle("bad",count>0);card.classList.toggle("good",count===0);
+  }
+
+  function update(){
+    const x=inputs();
+    if(x.n<1)return;
+    const maxStart=Math.max(0,sourceLength()-x.n);
+    $("start").max=maxStart;
+    if(Number($("start").value)>maxStart)$("start").value=maxStart;
+    const s=Number($("start").value)||0,q=simulate(s);
+    setText("startLabel",sourceLabel(s)+" → "+sourceLabel(s+x.n-1));
+    setText("rangeCount",(maxStart+1)+" 個窗口");
+
+    const netReceived=x.newP-x.fee;
+    const irrM=rateFromCashflows(netReceived,x.newPmt,x.n);
+    setText("investable",money(x.invest));
+    setText("investFormula",money(x.newP)+" − "+money(x.fee+x.oldP+x.preFee));
+    setText("newPaymentOut",money(x.newPmt));
+    setText("monthlyDelta","舊貸期間差額約 "+money(Math.max(0,x.newPmt-x.oldPmt)));
+    setText("aprNominal",pct(irrM*12));
+    setText("aprEffective",pct(Math.pow(1+irrM,12)-1));
+    setText("newInterest",money(x.newPmt*x.n-x.newP));
+    setText("incrementalDebt0",money(x.newP-x.oldP));
+    setText("oldImpliedRate",Number.isFinite(x.oldI)?pct(x.oldI*12):"無法反推");
+    const cagr=q.a>0&&x.invest>0?Math.pow(q.a/x.invest,12/x.n)-1:NaN;
+    const periodText=target===0?"00631L 官方淨值（已含商品內部效果）":target===1?"0050 還原息模式":"2× 教學模式，非真實商品";
+    setText("assetCagr",pct(cagr,1));setText("assetPeriod",periodText);
+
+    setText("assetAEnd",money(q.a));setText("assetAStart",money(x.invest));setText("newBalEnd",money(q.newBal));
+    setText("netAEnd",money(q.netA));setText("mddA",pct(q.mddA,1));
+    setText("assetBEnd",money(q.b));setText("dcaEarly",money(q.earlyB));setText("dcaLate",money(q.lateB));
+    setText("oldBalEnd",money(q.oldBal));setText("netBEnd",money(q.netB));
+    styleValue("netAEnd",q.netA);styleValue("netBEnd",q.netB);
+    const verdict=q.adv>=0
+      ? "這段歷史路徑中，方案 A 的期末淨值比方案 B 多 "+money(q.adv)+"。這是事後結果，不代表未來勝率。"
+      : "這段歷史路徑中，方案 B 的期末淨值比方案 A 多 "+money(-q.adv)+"；先跌後漲或長期盤整會讓分批投入相對有利。";
+    setText("verdict",verdict);
+    $("verdict").style.borderColor=q.adv>=0?"var(--red)":"var(--green)";
+
+    gapSummary("fullGap",q.fullCount,q.fullMaxStreak,q.fullMin,q.fullMinAt,x.n);
+    gapSummary("incGap",q.incCount,q.incMaxStreak,q.incMin,q.incMinAt,x.n);
+    drawLineChart($("pathChart"),q.series.labels,[
+      {data:q.series.a,color:colors.ink},{data:q.series.b,color:colors.blue},
+      {data:q.series.newBal,color:colors.loan,dash:true},{data:q.series.oldBal,color:colors.old,dash:true}
+    ]);
+    drawLineChart($("gapChart"),q.series.labels,[
+      {data:q.series.full,color:colors.green},{data:q.series.inc,color:colors.amber},{data:q.series.adv,color:colors.red}
+    ],true);
+
+    const rows=historicalWindows(),wins=rows.filter(r=>r.adv>0),losses=rows.filter(r=>r.adv<=0);
+    setText("winRate",(wins.length/rows.length*100).toFixed(1)+"%");
+    setText("winCount",rows.length+" 個重疊窗口：勝 "+wins.length+"、負 "+losses.length);
+    setText("winMedian",wins.length?signed(median(wins.map(r=>r.adv))):"—");
+    setText("winBest",wins.length?"最多領先 "+money(Math.max(...wins.map(r=>r.adv))):"沒有勝出窗口");
+    setText("lossMedian",losses.length?signed(median(losses.map(r=>r.adv))):"—");
+    const worst=losses.length?losses.reduce((a,b)=>b.adv<a.adv?b:a):null;
+    setText("lossWorst",worst?"最差 "+signed(worst.adv)+"（"+sourceLabel(worst.s)+"）":"沒有落後窗口");
+    drawBars($("distChart"),rows.map(r=>sourceLabel(r.s)),rows.map(r=>r.adv));
+
+    const cross=crossRate(s);
+    if(cross.kind==="none"){
+      setText("crossRate","不存在");setText("crossApr","此路徑即使名目利率 0%，方案 A 仍落後");
+    }else if(cross.kind==="high"){
+      setText("crossRate","> 50%");setText("crossApr","行情過強；不具可借高利率的含義");
+    }else{
+      const cm=rateFromCashflows(x.newP-x.fee,payment(x.newP,cross.annual,x.n),x.n);
+      setText("crossRate",pct(cross.annual));
+      setText("crossApr","對應名目 APR "+pct(cm*12)+"／有效年化 "+pct(Math.pow(1+cm,12)-1));
+    }
+
+    const warnings=[];
+    if(x.invest<=0)warnings.push("清償舊貸與費用後沒有剩餘可投資金額。");
+    if(x.n>sourceLength())warnings.push("新貸期數超過目前模式的歷史資料長度，請縮短期數或切換資料模式。");
+    if(!Number.isFinite(x.oldI))warnings.push("舊貸月付 × 剩餘期數小於舊貸本金，無法反推可攤還利率；舊貸餘額路徑暫以 0% 估算。");
+    if(x.oldN>x.n)warnings.push("舊貸剩餘期數長於新貸模擬期，期末舊貸仍可能有餘額。");
+    if(x.oldPmt>x.newPmt)warnings.push("舊貸月付高於新貸月付；為維持相同薪資預算，差額會改投入方案 A。");
+    setText("inputWarning",warnings.join(" "));
+  }
+
+  function prepareCanvas(canvas){
+    const rect=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=Math.max(320,Math.round(rect.width*dpr));
+    canvas.height=Math.round(parseFloat(getComputedStyle(canvas).height)*dpr);
+    const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);
+    return {ctx,w:rect.width,h:parseFloat(getComputedStyle(canvas).height)};
+  }
+  function niceMoney(v){
+    const a=Math.abs(v);
+    if(a>=1000000)return (v/1000000).toFixed(a>=10000000?0:1)+"M";
+    if(a>=10000)return (v/10000).toFixed(a>=100000?0:1)+"萬";
+    return Math.round(v).toLocaleString("zh-TW");
+  }
+  function drawLineChart(canvas,labels,sets,forceZero=false){
+    const {ctx,w,h}=prepareCanvas(canvas),pad={l:58,r:14,t:13,b:32};
+    const vals=sets.flatMap(s=>s.data).filter(Number.isFinite);
+    let min=Math.min(...vals),max=Math.max(...vals);
+    if(forceZero){min=Math.min(min,0);max=Math.max(max,0)}
+    const span=Math.max(1,max-min);min-=span*.08;max+=span*.08;
+    const x=i=>pad.l+(w-pad.l-pad.r)*(i/(labels.length-1||1));
+    const y=v=>pad.t+(h-pad.t-pad.b)*(1-(v-min)/(max-min));
+    ctx.clearRect(0,0,w,h);ctx.font="11px system-ui";ctx.fillStyle=colors.muted;ctx.strokeStyle=colors.grid;ctx.lineWidth=1;
+    for(let k=0;k<5;k++){
+      const val=min+(max-min)*k/4,yy=y(val);
+      ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();
+      ctx.textAlign="right";ctx.textBaseline="middle";ctx.fillText(niceMoney(val),pad.l-8,yy);
+    }
+    if(min<0&&max>0){ctx.strokeStyle="#b6beca";ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(pad.l,y(0));ctx.lineTo(w-pad.r,y(0));ctx.stroke()}
+    const ticks=Math.min(7,labels.length);
+    for(let k=0;k<ticks;k++){const i=Math.round((labels.length-1)*k/(ticks-1||1));ctx.fillStyle=colors.muted;ctx.textAlign=k===0?"left":k===ticks-1?"right":"center";ctx.textBaseline="top";ctx.fillText(labels[i],x(i),h-pad.b+8)}
+    sets.forEach(s=>{
+      ctx.beginPath();ctx.strokeStyle=s.color;ctx.lineWidth=2;ctx.setLineDash(s.dash?[5,4]:[]);
+      s.data.forEach((v,i)=>{if(i===0)ctx.moveTo(x(i),y(v));else ctx.lineTo(x(i),y(v))});
+      ctx.stroke();ctx.setLineDash([]);
+    });
+  }
+  function drawBars(canvas,labels,data){
+    const {ctx,w,h}=prepareCanvas(canvas),pad={l:58,r:12,t:10,b:31};
+    let min=Math.min(0,...data),max=Math.max(0,...data),span=Math.max(1,max-min);min-=span*.06;max+=span*.06;
+    const y=v=>pad.t+(h-pad.t-pad.b)*(1-(v-min)/(max-min)), plotW=w-pad.l-pad.r,barW=Math.max(1,plotW/data.length);
+    ctx.clearRect(0,0,w,h);ctx.font="11px system-ui";
+    for(let k=0;k<5;k++){const val=min+(max-min)*k/4,yy=y(val);ctx.strokeStyle=colors.grid;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();ctx.fillStyle=colors.muted;ctx.textAlign="right";ctx.textBaseline="middle";ctx.fillText(niceMoney(val),pad.l-8,yy)}
+    const zero=y(0);ctx.strokeStyle="#aeb8c5";ctx.beginPath();ctx.moveTo(pad.l,zero);ctx.lineTo(w-pad.r,zero);ctx.stroke();
+    data.forEach((v,i)=>{const xx=pad.l+i*barW,yy=y(v);ctx.fillStyle=v>=0?colors.red:colors.green;ctx.fillRect(xx,Math.min(yy,zero),Math.max(1,barW-.25),Math.max(1,Math.abs(zero-yy)))});
+    const years=[];labels.forEach((l,i)=>{if(l.endsWith("/01"))years.push({i,label:l.slice(0,4)})});
+    const skip=Math.max(1,Math.ceil(years.length/7));years.filter((_,i)=>i%skip===0).forEach(t=>{ctx.fillStyle=colors.muted;ctx.textAlign="center";ctx.textBaseline="top";ctx.fillText(t.label,pad.l+(t.i+.5)*barW,h-pad.b+8)});
+  }
+
+  function selectTarget(value){
+    target=value;
+    $("target631").classList.toggle("on",value===0);
+    $("target0050").classList.toggle("on",value===1);
+    $("target2x").classList.toggle("on",value===2);
+    $("actualDataNotice").classList.toggle("hidden",value!==0);
+    $("leverageAlert").classList.toggle("hidden",value!==2);
+    $("simFee").disabled=value!==2;
+    $("start").value=0;
+    update();
+    $("start").value=worstStart();
+    update();
+  }
+  $("target631").addEventListener("click",()=>selectTarget(0));
+  $("target0050").addEventListener("click",()=>selectTarget(1));
+  $("target2x").addEventListener("click",()=>selectTarget(2));
+  ids.forEach(id=>$(id).addEventListener("input",update));
+  $("jumpWorst").addEventListener("click",()=>{$("start").value=worstStart();update()});
+  $("jumpRandom").addEventListener("click",()=>{const max=Math.max(0,sourceLength()-inputs().n);$("start").value=Math.floor(Math.random()*(max+1));update()});
+  $("resetDefaults").addEventListener("click",()=>{Object.entries(defaults).forEach(([k,v])=>$(k).value=v);selectTarget(0)});
+  $("download631").addEventListener("click",()=>{
+    const rows=["月份,00631L官方淨值月報酬(%)"];
+    NAV631_RETURNS.forEach((value,index)=>rows.push(sourceLabelFor631(index)+","+value.toFixed(8)));
+    const blob=new Blob(["\ufeff"+rows.join("\n")],{type:"text/csv;charset=utf-8"});
+    const url=URL.createObjectURL(blob),a=document.createElement("a");
+    a.href=url;a.download="00631L_官方淨值月報酬_201411_202606.csv";a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),0);
+  });
+  let resizeTimer;window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(update,120)});
+  $("simFee").disabled=true;
+  update();
+  $("start").value=worstStart();
+  update();
+})();
 </script>
 </body>
 </html>
