@@ -140,7 +140,7 @@
 
   <div class="alert" id="actualDataNotice" role="status" style="background:#edf4fb;border-color:#b9cde8;color:#294f80">
     <p class="bigwarn" style="color:#173b67">目前使用 00631L 官方每日淨值還原的完整月報酬。</p>
-    <p>資料涵蓋 2014/10/31 掛牌日至 2026/06 的完整月份；2026 年 3 月基金分割已校正，停止交易期間的零淨值以官方基金淨資產除以流通單位數補回。2026/07 尚未結束，因此不納入歷史窗口。</p>
+    <p>資料涵蓋 2014/10/31 掛牌日至 2026/07 的完整月份；2026 年 3 月基金分割已校正，停止交易期間的零淨值以官方基金淨資產除以流通單位數補回。資料更新至 2026/07/31，本檔開啟時不會自動連網。</p>
   </div>
   <div class="alert hidden" id="leverageAlert" role="alert">
     <p class="bigwarn">目前選的是「2× 教學模擬」，不是 00631L 真實回測。</p>
@@ -161,7 +161,7 @@
           </div>
         </div>
         <div class="field"><label for="newPrincipal">新貸本金</label><input id="newPrincipal" type="number" min="10000" step="1000" value="500000"></div>
-        <div class="field"><label for="newMonths">新貸期數（月）</label><input id="newMonths" type="number" min="12" max="240" step="1" value="84"></div>
+        <div class="field"><label for="newMonths">新貸期數（月）</label><input id="newMonths" type="number" min="12" max="120" step="1" value="84"><p class="hint">最高120期。</p></div>
         <div class="field"><label for="newRate">新貸名目年利率（%）</label><input id="newRate" type="number" min="0" max="30" step="0.01" value="5.00"></div>
         <div class="field"><label for="originationFee">開辦費</label><input id="originationFee" type="number" min="0" step="100" value="3000"></div>
         <div class="field"><label for="oldPrincipal">原貸當日清償本金</label><input id="oldPrincipal" type="number" min="0" step="100" value="200000"><p class="hint">通用示例值，請換成銀行的當日清償報價。</p></div>
@@ -285,7 +285,7 @@
   </section>
 
   <footer>
-    <p><strong>資料：</strong>00631L 模式取自元大投信官方歷史淨值介面，共取得 2014/10/31–2026/07/24 的 2,860 筆日資料，再轉為 2014/11–2026/06 的 140 筆完整月報酬。0050 模式使用內建的還原息月報酬序列（2003/07–2026/06），原註記來源為 havocFuture 個人整理資料。本檔已內嵌資料，開啟時不連網。</p>
+    <p><strong>資料：</strong>00631L 模式取自元大投信官方歷史淨值介面，共取得 2014/10/31–2026/07/31 的 2,865 筆日資料，再轉為 2014/11–2026/07 的 141 筆完整月報酬。0050 模式使用內建的還原息月報酬序列（2003/07–2026/06），原註記來源為 havocFuture 個人整理資料。本檔已內嵌資料，開啟時不連網。</p>
     <p><strong>分割處理：</strong>00631L 於 2026/03 進行 1 單位換發 22 單位的分割；分割前淨值除以 22，2026/03/25–03/30 停止交易期間則以官方基金淨資產／流通單位數還原淨值。2× 教學模式仍不是真實 00631L。</p>
     <p><strong>重要限制：</strong>模型未計入稅費、券商交易成本、買賣折溢價、浮動／分段利率、信用保險、帳管費、利率調整、舊貸部分月提前清償規則與收入中斷。若銀行從撥款外另行收費，請依實際現金流調整。</p>
     <p><strong>免責聲明：</strong>本頁為歷史情境分析與教育用途，不構成投資、信貸或財務建議。長期不賣能降低被迫在低點退出的操作風險，但不能消除槓桿 ETF 的路徑耗損、商品結構風險與長期落後風險。</p>
@@ -332,7 +332,7 @@
     14.46208113,0.28248588,8.69142125,18.0425973,-6.41890543,-1.79584524,-0.67326905,4.63112783,
     -5.70091114,6.16080135,4.76369405,-4.81409158,-20.20096295,-10.51941238,12.62386397,11.05268638,
     14.8516244,5.87779093,14.04834419,19.33880945,-5.12406526,8.4729064,22.29378251,20.81335944,
-    -21.14900989,48.54469854,28.37648705,4.55164895
+    -21.14900989,48.54469854,28.37648705,4.55164895,-12.85192909
   ];
   const ids = [
     "newPrincipal","newMonths","newRate","originationFee","oldPrincipal","prepayFee",
@@ -341,6 +341,7 @@
   const $ = id => document.getElementById(id);
   let target = 0;
   const defaults = {newPrincipal:500000,newMonths:84,newRate:5.00,originationFee:3000,oldPrincipal:200000,prepayFee:0,oldPayment:3500,oldMonths:60,simFee:0.10};
+  const MAX_LOAN_MONTHS = 120;
   const colors = {ink:"#17243b",blue:"#2d5d9f",loan:"#7a8799",old:"#aab3c0",green:"#1c8157",amber:"#946400",red:"#c63c3f",grid:"#e6eaf0",muted:"#66758b"};
 
   const num = id => Math.max(0, Number($(id).value) || 0);
@@ -395,7 +396,8 @@
     return (lo+hi)/2;
   };
   const inputs = () => {
-    const newP=num("newPrincipal"), n=Math.round(num("newMonths")), annual=num("newRate")/100;
+    const newP=num("newPrincipal"), requestedN=Math.round(num("newMonths")), n=Math.min(MAX_LOAN_MONTHS,requestedN), annual=num("newRate")/100;
+    if(requestedN>MAX_LOAN_MONTHS)$("newMonths").value=MAX_LOAN_MONTHS;
     const fee=num("originationFee"), oldP=num("oldPrincipal"), preFee=num("prepayFee");
     const oldPmt=num("oldPayment"), oldN=Math.round(num("oldMonths"));
     const invest=Math.max(0,newP-fee-oldP-preFee);
@@ -619,7 +621,7 @@
     NAV631_RETURNS.forEach((value,index)=>rows.push(sourceLabelFor631(index)+","+value.toFixed(8)));
     const blob=new Blob(["\ufeff"+rows.join("\n")],{type:"text/csv;charset=utf-8"});
     const url=URL.createObjectURL(blob),a=document.createElement("a");
-    a.href=url;a.download="00631L_官方淨值月報酬_201411_202606.csv";a.click();
+    a.href=url;a.download="00631L_官方淨值月報酬_201411_202607.csv";a.click();
     setTimeout(()=>URL.revokeObjectURL(url),0);
   });
   let resizeTimer;window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(update,120)});
