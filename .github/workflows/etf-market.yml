@@ -1,0 +1,34 @@
+name: Update ETF public closing data
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '20 6,8 * * 1-5'
+permissions:
+  contents: write
+concurrency:
+  group: etf-market
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Refresh public market
+        id: market
+        continue-on-error: true
+        run: node etf-monitor-tools/update-market.mjs
+      - name: Save public market and failure status
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add etf-monitor/market.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update verified ETF closing data"
+            git push
+          fi
+      - name: Mark unsuccessful market refresh
+        if: steps.market.outcome == 'failure'
+        run: exit 1
