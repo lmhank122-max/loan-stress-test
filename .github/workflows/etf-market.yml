@@ -1,5 +1,10 @@
 name: Update ETF public closing data
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/etf-market.yml'
+      - 'etf-monitor-tools/update-market.mjs'
   workflow_dispatch:
   schedule:
     - cron: '20 6,8 * * 1-5'
