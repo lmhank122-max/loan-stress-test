@@ -1,8 +1,9 @@
-export function buildComparison({market,account,balances=[],initialCash=43000}){
- if(!account.start||account.start.date!=='2026-06-01')throw Error('Excel缺少6/1持倉起點');
+export function buildComparison({market,account,balances=[],initialCash=0}){
+ if(!account.start||account.requestedStart!=='2026-02-01')throw Error('比較起點已改為2026/02/01，請重新匯入Excel或新版私人備份');
+ if(!(initialCash>=0)||!Number.isFinite(initialCash))throw Error('期初投資現金無效');
  const dates=market.filter(x=>x.date>=account.start.date).sort((a,b)=>a.date.localeCompare(b.date));
- if(dates[0]?.date!==account.start.date||!(dates[0].index>0))throw Error('市場資料缺少6/1起點');
- const transactions=new Map();for(const t of account.transactions??[]){const old=transactions.get(t.date)??{bought:0,buyCost:0,sold:0,saleProceeds:0};for(const k of ['bought','buyCost','sold','saleProceeds'])old[k]+=Number(t[k])||0;transactions.set(t.date,old);}
+ if(dates[0]?.date!==account.start.date||!(dates[0].index>0))throw Error('市場資料缺少帳戶實際起點：'+account.start.date);
+ const transactions=new Map();for(const t of account.transactions??[]){if(t.date<=account.start.date)continue;const old=transactions.get(t.date)??{bought:0,buyCost:0,sold:0,saleProceeds:0};for(const k of ['bought','buyCost','sold','saleProceeds'])old[k]+=Number(t[k])||0;transactions.set(t.date,old);}
  const checkpoints=new Map(balances.map(b=>[b.date,b]));
  let shares=account.start.shares,cash=initialCash,previousAssets=0,own=1,all0050=1,theory=1;
  let benchmarkAssets=shares*dates[0].price00631L+cash,theoryAssets=benchmarkAssets,pnl=0;
@@ -10,6 +11,7 @@ export function buildComparison({market,account,balances=[],initialCash=43000}){
  for(let i=0;i<dates.length;i++){
   const m=dates[i];for(const k of ['price00631L','price0050','index'])if(!(m[k]>0))throw Error('市場資料缺值：'+m.date);
   const t=transactions.get(m.date)??{bought:0,buyCost:0,sold:0,saleProceeds:0};
+  if(m.suspended&&(t.bought||t.sold))throw Error('停牌日出現買賣紀錄，請核對Excel：'+m.date);
   const flow=(account.externalFlows??[]).filter(f=>f.date===m.date);let incoming=flow.reduce((s,f)=>s+Math.max(0,f.amount),0),outgoing=flow.reduce((s,f)=>s+Math.max(0,-f.amount),0);
   const minimum=Math.max(0,-(cash+incoming-outgoing-t.buyCost+t.saleProceeds));
   if(minimum){incoming+=minimum;inferredFlows.push({date:m.date,amount:minimum,reason:'現金不足當天補足缺口'});}
@@ -36,11 +38,11 @@ export function buildComparison({market,account,balances=[],initialCash=43000}){
    theoryAssets=(theoryAssets+incoming)*theoryDaily-outgoing;
    pnl+=assets-previousAssets-incoming+outgoing;
   }
-  rows.push({date:m.date,own,all0050,theory,shares,cash,stock,assets,incoming,outgoing,dailyReturn,pnl,exposureRate:2*stock/assets,benchmarkAssets,theoryAssets,gap0050PP:100*(own-all0050),gapTheoryPP:100*(own-theory)});
+  rows.push({date:m.date,own,all0050,theory,shares,cash,stock,assets,incoming,outgoing,dailyReturn,pnl,exposureRate:2*stock/assets,benchmarkAssets,theoryAssets,gap0050PP:100*(own-all0050),gapTheoryPP:100*(own-theory),suspended:!!m.suspended});
   previousAssets=assets;
  }
  const last=rows.at(-1);
- return {rows,inferredFlows,summary:{start:rows[0].date,end:last.date,last,initialAssets:rows[0].assets,workbookAsOf:account.asOf,workbookSavedAt:account.savedAt,financialScope:'股票＋投資現金',isEstimated:true,yearNetGrowth:account.cachedNet/account.yearStartNet-1,yearStartNet:account.yearStartNet,currentNetSnapshot:account.cachedNet,workbookCachedPrice:account.cachedPrice}};
+ return {rows,inferredFlows,summary:{requestedStart:'2026-02-01',start:rows[0].date,end:last.date,last,initialAssets:rows[0].assets,initialCash,initialCashEstimated:initialCash===0,startNote:'指定2026/02/01；2/1休市，帳戶最早紀錄為'+rows[0].date+'，三方從該日收盤對齊比較。',valuationNote:'00631L分割前價格除以22，對應Excel已調整股數；3/25～3/30停牌日沿用前收盤估值，理論170%仍按市場每日報酬複利。',workbookAsOf:account.asOf,workbookSavedAt:account.savedAt,financialScope:'股票＋投資現金',isEstimated:true,yearNetGrowth:account.cachedNet/account.yearStartNet-1,yearStartNet:account.yearStartNet,currentNetSnapshot:account.cachedNet,workbookCachedPrice:account.cachedPrice}};
 }
 
 export function comparisonAlerts(row,tolerance=2){

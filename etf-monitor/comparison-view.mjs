@@ -16,7 +16,8 @@ function render(){
  const {rows,summary,inferredFlows}=loaded,index=Number($('performanceDate').value),row=rows[index],selected=rows.slice(0,index+1),wealth=$('comparisonMode').value==='wealth';
  const toleranceText=$('performanceTolerance').value,tolerance=toleranceText!==''?Number(toleranceText):NaN;
  const validTolerance=Number.isFinite(tolerance)&&tolerance>=0;
- $('performanceDay').textContent='查看 '+row.date+' 收盤｜從2026/06/01收盤起算';
+ $('comparisonStartNote').textContent=summary.startNote+' 期初投資現金 '+money(summary.initialCash)+(summary.initialCashEstimated?'（未提供，暫按0元估算；績效結果會受此假設影響）':'')+'。';
+ $('performanceDay').textContent='查看 '+row.date+' 收盤｜指定2026/02/01，實際從'+summary.start+'收盤起算';
  $('performanceActualLabel').textContent=wealth?'你的帳戶資產（估算）':'你的帳戶報酬（估算）';
  $('performance0050Label').textContent=wealth?'100%0050：同金流資產':'100%0050含息報酬';
  $('performanceTheoryLabel').textContent=wealth?'理論170%：同金流資產':'理論每日170%報酬';
@@ -35,12 +36,12 @@ function render(){
  $('comparison170RateAlert').className='hint '+(theoryBehind?'error':'');$('comparison170RateAlert').textContent=rateReminder;
  $('comparisonDailySummary').textContent='逐日報酬複利：你的帳戶 '+pct(row.own)+'｜100%0050 '+pct(row.all0050)+'｜理論170% '+pct(row.theory)+'。這個百分比口徑與同金流的資產排名可能不同。';
  $('performanceAlert').textContent='落後提示是檢查策略的訊號；調整曝險金額請看下方帳戶設定。';
- $('performanceBasis').textContent=wealth?'6/1起始本金相同；你每次追加或轉出資金，0050與理論170%也在同一天投入或領走相同金額。主提醒比較最後留下的投資資產。':'同一天、同一起點比較你的「股票＋投資現金」與兩個基準。原有現金買股票不算新增本金；額外入金與轉出已排除於每日帳戶報酬之外。';
+ $('performanceBasis').textContent=wealth?'從'+summary.start+'起始本金相同；你每次追加或轉出資金，0050與理論170%也在同一天投入或領走相同金額。主提醒比較最後留下的投資資產。':'同一天、同一起點比較你的「股票＋投資現金」與兩個基準。原有現金買股票不算新增本金；額外入金與轉出已排除於每日帳戶報酬之外。';
  $('comparisonDataStatus').textContent='比較截至 '+summary.end+' 收盤｜Excel帳戶日期 '+summary.workbookAsOf+'；持倉沿用最近儲存紀錄。Excel修改並儲存後，請重新匯入網站。持倉不會自動讀取電腦檔案。';
- $('comparisonEstimate').textContent='金流估算：現金不足日補入最低差額；其餘未明金流以儲存日現金餘額反推，共 '+inferredFlows.length+' 筆。你的曲線是重建估算。';
+ $('comparisonEstimate').textContent=summary.startNote+' '+summary.valuationNote+' 期初投資現金 '+money(summary.initialCash)+(summary.initialCashEstimated?'（未提供，暫按0元估算）':'')+'。金流估算：現金不足日補入最低差額；其餘未明金流以儲存日現金餘額反推，共 '+inferredFlows.length+' 筆。你的曲線是重建估算。';
  $('comparisonUpdateError').textContent=summary.marketUpdateError??'';
  $('annualSnapshot').textContent='今年淨資產成長 '+(100*summary.yearNetGrowth).toFixed(2)+'%（Excel '+summary.workbookAsOf+'快照）';
- $('annualSnapshotDetails').textContent='年初淨資產 '+money(summary.yearStartNet)+'，快照淨資產 '+money(summary.currentNetSnapshot)+'。這是年初到快照日的淨資產成長，已扣貸款；主圖則從6/1比較投資帳戶報酬。';
+ $('annualSnapshotDetails').textContent='年初淨資產 '+money(summary.yearStartNet)+'，快照淨資產 '+money(summary.currentNetSnapshot)+'。這是年初到快照日的淨資產成長，已扣貸款；主圖則從'+summary.start+'比較投資帳戶報酬。';
  $('sameFlowNote').textContent=wealth?'三方使用相同入金、相同轉出日期與金額，比較最後留下多少資產。':'每日報酬複利比較各段績效；若你要比較相同加碼資金最後留下多少錢，可切換「同金流資產比較」。目前查看日，你的資產比同金流0050 '+(row.assets>=row.benchmarkAssets?'多 ':'少 ')+money(Math.abs(row.assets-row.benchmarkAssets))+'。';
  $('estimateFlowRows').innerHTML=inferredFlows.map(f=>'<tr><td>'+f.date+'</td><td>'+money(f.amount)+'</td><td>'+f.reason+'</td></tr>').join('');
  const W=Math.max(300,$('performanceChart').clientWidth),H=W<500?270:320,left=65,right=W-20,top=30,bottom=H-53;

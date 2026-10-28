@@ -39,10 +39,10 @@ export async function readAccountFile(file){
  if(!sheets.has('設定與計算')||!sheets.has('每日損益'))throw Error('需要設定與計算、每日損益兩張工作表');
  const numeric=(cells,key)=>{const value=cells.get(key);if(value===undefined||value===''||!Number.isFinite(Number(value)))throw Error('Excel數值缺漏：'+key+'；請先在Excel儲存計算結果');return Number(value);};
  const settings=sheets.get('設定與計算').cells,daily=sheets.get('每日損益'),transactions=[],positions=[];let start=null;
- for(const row of daily.rows){const n=row.getAttribute('r'),serial=Number(daily.cells.get('A'+n));if(!(serial>=45000))continue;const day=date(serial),shares=numeric(daily.cells,'E'+n);positions.push({date:day,shares});if(day==='2026-06-01')start={date:day,shares,price:numeric(daily.cells,'B'+n)};if(day<='2026-06-01')continue;const bought=numeric(daily.cells,'C'+n),sold=numeric(daily.cells,'N'+n);if(bought||sold)transactions.push({date:day,bought,buyCost:numeric(daily.cells,'D'+n),sold,saleProceeds:numeric(daily.cells,'P'+n)});}
- const account={asOf:date(numeric(settings,'B5')),savedAt:new Date(file.lastModified).toISOString(),shares:numeric(settings,'B10'),cash:numeric(settings,'B12'),living:numeric(settings,'B13'),reserve:numeric(settings,'B19'),debt:numeric(settings,'B14'),yearStartNet:numeric(settings,'B45'),cachedPrice:numeric(settings,'B9'),cachedNet:numeric(settings,'B39'),start,transactions,positions};
+ for(const row of daily.rows){const n=row.getAttribute('r'),serial=Number(daily.cells.get('A'+n));if(!(serial>=45000))continue;const day=date(serial),shares=numeric(daily.cells,'E'+n);positions.push({date:day,shares});if(day<'2026-02-01')continue;if(!start){start={date:day,shares,price:numeric(daily.cells,'B'+n)};continue;}const bought=numeric(daily.cells,'C'+n),sold=numeric(daily.cells,'N'+n);if(bought||sold)transactions.push({date:day,bought,buyCost:numeric(daily.cells,'D'+n),sold,saleProceeds:numeric(daily.cells,'P'+n)});}
+ const account={requestedStart:'2026-02-01',asOf:date(numeric(settings,'B5')),savedAt:new Date(file.lastModified).toISOString(),shares:numeric(settings,'B10'),cash:numeric(settings,'B12'),living:numeric(settings,'B13'),reserve:numeric(settings,'B19'),debt:numeric(settings,'B14'),yearStartNet:numeric(settings,'B45'),cachedPrice:numeric(settings,'B9'),cachedNet:numeric(settings,'B39'),start,transactions,positions};
  const fees=sheets.get('加碼金管理')?.cells;
  if(fees)account.fees={buy:numeric(fees,'E10'),sell:numeric(fees,'E11'),tax:numeric(fees,'E12')};
- if(!start)throw Error('Excel缺少2026/06/01持倉起點');if(!Number.isInteger(account.shares)||account.shares<0||account.cash<0)throw Error('持股或現金無效');
+ if(!start)throw Error('Excel缺少2026/02/01以後的持倉紀錄');if(!Number.isInteger(account.shares)||account.shares<0||account.cash<0)throw Error('持股或現金無效');
  return account;
 }
